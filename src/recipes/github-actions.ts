@@ -48,31 +48,30 @@ function patchCiContent(content: string): string {
     bunxTscIndex >= 0 &&
     !patched.some((line) => /oven-sh\/setup-bun/u.test(line))
   ) {
-    const indent = stepListIndent(patched, bunxTscIndex);
-    patched.splice(bunxTscIndex, 0, `${indent}- uses: oven-sh/setup-bun@v1`);
+    // Insert before the owning step list item, not the matched run/continuation line.
+    const insertAt = owningStepIndex(patched, bunxTscIndex);
+    const indent = /^(\s*)/u.exec(patched[insertAt] ?? "")?.[1] ?? "";
+    patched.splice(insertAt, 0, `${indent}- uses: oven-sh/setup-bun@v1`);
   }
   return patched.join("\n");
 }
 
-/** Indent of the owning `- ` list item for a step property or `- run:` line. */
-function stepListIndent(lines: string[], index: number): string {
+/**
+ * Index of the owning `- ` step for a step property or multiline `run:` body line.
+ * Continuation lines and nested keys must not be treated as insertion points.
+ */
+function owningStepIndex(lines: string[], index: number): number {
   const line = lines[index] ?? "";
-  const runListItem = /^(\s*)-\s*run:/u.exec(line);
-  if (runListItem) return runListItem[1] ?? "";
+  if (/^\s*-\s+/u.test(line)) return index;
 
-  const propIndent = /^(\s*)/u.exec(line)?.[1] ?? "";
+  const lineIndent = /^(\s*)/u.exec(line)?.[1]?.length ?? 0;
   for (let i = index - 1; i >= 0; i--) {
     const prev = lines[i] ?? "";
     if (prev.trim() === "") continue;
     const listItem = /^(\s*)-\s+/u.exec(prev);
-    if (listItem && (listItem[1]?.length ?? 0) < propIndent.length) {
-      return listItem[1] ?? "";
-    }
-    // Left the current step block without finding a list marker.
-    if ((/^(\s*)/u.exec(prev)?.[1]?.length ?? 0) < propIndent.length) {
-      break;
+    if (listItem && (listItem[1]?.length ?? 0) < lineIndent) {
+      return i;
     }
   }
-
-  return propIndent.slice(0, Math.max(0, propIndent.length - 2));
+  return index;
 }

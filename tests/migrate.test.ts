@@ -218,11 +218,16 @@ describe("github-actions patching", () => {
     const actions = await planGithubActions(ctx);
     await applyActions(actions);
     const actual = await readFile(join(workflowDir, "ci.yml"), "utf8");
-    expect(actual).toContain("- uses: oven-sh/setup-bun@v1");
     expect(actual).toContain("run: bunx tsc --noEmit");
     expect(actual).toContain("bunx tsc --noEmit");
     expect(actual).not.toContain("tsgo");
-    expect(actual).toMatch(/^\s+- uses: oven-sh\/setup-bun@v1$/m);
+    // setup-bun must be its own step before the owning run step, not mid-block.
+    expect(actual).toMatch(
+      /checkout@v4\n\s+- uses: oven-sh\/setup-bun@v1\n\s+- name: Typecheck/u,
+    );
+    expect(actual).toMatch(
+      /run: \|\n\s+bunx tsc --noEmit\n\s+echo done/u,
+    );
   });
 });
 
