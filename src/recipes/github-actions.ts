@@ -57,18 +57,19 @@ function patchCiContent(content: string): string {
 }
 
 /**
- * Index of the owning `- ` step for a step property or multiline `run:` body line.
+ * Index of the owning `-` step for a step property or multiline `run:` body line.
  * Continuation lines and nested keys must not be treated as insertion points.
+ * Matches both `- key:` and bare `-` (content on following indented lines).
  */
 function owningStepIndex(lines: string[], index: number): number {
   const line = lines[index] ?? "";
-  if (/^\s*-\s+/u.test(line)) return index;
+  if (/^\s*-(?:\s|$)/u.test(line)) return index;
 
   const lineIndent = /^(\s*)/u.exec(line)?.[1]?.length ?? 0;
   for (let i = index - 1; i >= 0; i--) {
     const prev = lines[i] ?? "";
     if (prev.trim() === "") continue;
-    const listItem = /^(\s*)-\s+/u.exec(prev);
+    const listItem = /^(\s*)-(?:\s|$)/u.exec(prev);
     if (listItem && (listItem[1]?.length ?? 0) < lineIndent) {
       return i;
     }

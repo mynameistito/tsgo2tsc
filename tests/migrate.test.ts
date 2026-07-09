@@ -229,6 +229,49 @@ describe("github-actions patching", () => {
       /run: \|\n\s+bunx tsc --noEmit\n\s+echo done/u,
     );
   });
+
+  test("inserts setup-bun before bare `-` step list items", async () => {
+    const cwd = await mkdtemp(join(tmpdir(), "tsgo2tsc-ci-bare-"));
+    await writeFile(
+      join(cwd, "package.json"),
+      JSON.stringify({
+        name: "ci-fixture",
+        devDependencies: { "@typescript/native-preview": "latest" },
+      }),
+      "utf8",
+    );
+    const workflowDir = join(cwd, ".github", "workflows");
+    await mkdir(workflowDir, { recursive: true });
+    await writeFile(
+      join(workflowDir, "ci.yml"),
+      [
+        "name: CI",
+        "on: push",
+        "jobs:",
+        "  typecheck:",
+        "    runs-on: ubuntu-latest",
+        "    steps:",
+        "      - uses: actions/checkout@v4",
+        "      -",
+        "        run: bunx tsgo --noEmit",
+        "",
+      ].join("\n"),
+      "utf8",
+    );
+
+    const ctx = await buildProjectContext(
+      baseOptions(cwd, { updateCi: true }),
+    );
+    const actions = await planGithubActions(ctx);
+    await applyActions(actions);
+    const actual = await readFile(join(workflowDir, "ci.yml"), "utf8");
+    expect(actual).not.toContain("tsgo");
+    // Bare `-` must still be recognized as the owning step so setup-bun
+    // is a sibling list item, not nested under the step mapping.
+    expect(actual).toMatch(
+      /checkout@v4\n\s+- uses: oven-sh\/setup-bun@v1\n\s+-\n\s+run: bunx tsc --noEmit/u,
+    );
+  });
 });
 
 describe("include globs", () => {
