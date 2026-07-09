@@ -1,6 +1,6 @@
 {
   "name": "tsgo2tsc",
-  "version": "0.1.0",
+  "version": "0.0.1",
   "description": "Migrate projects from @typescript/native-preview and tsgo to the TypeScript 7 tsc flow.",
   "type": "module",
   "bin": {
