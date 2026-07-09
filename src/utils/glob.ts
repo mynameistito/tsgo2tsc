@@ -15,6 +15,7 @@ const DEFAULT_IGNORE = [
 
 const SCAN_PATTERNS = [
   "package.json",
+  "**/package.json",
   "bun.lock",
   "bun.lockb",
   "package-lock.json",
@@ -42,7 +43,9 @@ const SCAN_PATTERNS = [
   "README.md",
   "docs/**/*.md",
   "scripts/**/*.{js,ts,mjs,cjs}",
+  "**/scripts/**/*.{js,ts,mjs,cjs}",
   "src/**/*.{js,ts,tsx,mjs,cjs}",
+  "**/src/**/*.{js,ts,tsx,mjs,cjs}",
 ];
 
 export async function scanProjectFiles(

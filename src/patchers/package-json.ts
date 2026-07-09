@@ -1,5 +1,5 @@
 import { sortPackageJsonKeys } from "../utils/sort-package-json.js";
-import type { PackageJson } from "../types.js";
+import type { DependencySection, PackageJson } from "../types.js";
 
 export function patchPackageJsonContent(
   content: string,
@@ -13,7 +13,7 @@ export function patchPackageJsonContent(
 
 export function removeDependency(
   pkg: PackageJson,
-  section: keyof PackageJson,
+  section: DependencySection,
   name: string,
 ): boolean {
   const deps = pkg[section] as Record<string, string> | undefined;

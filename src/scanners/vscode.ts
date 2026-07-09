@@ -1,5 +1,6 @@
 import { readText } from "../utils/fs.js";
 import { join } from "node:path";
+import { parseJsonc } from "../patchers/jsonc.js";
 import type { ProjectContext } from "../types.js";
 
 export interface VscodeScanResult {
@@ -18,7 +19,7 @@ export async function scanVscodeSettings(
 
   let settings: Record<string, unknown>;
   try {
-    settings = JSON.parse(content) as Record<string, unknown>;
+    settings = parseJsonc<Record<string, unknown>>(content);
   } catch {
     return null;
   }

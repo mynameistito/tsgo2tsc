@@ -23,7 +23,21 @@ export function patchJsonSettings(
   content: string,
   mutator: (settings: Record<string, unknown>) => void,
 ): string {
-  const doc = parseJsonc<Record<string, unknown>>(content);
-  mutator(doc);
-  return `${JSON.stringify(doc, null, 2)}\n`;
+  const before = parseJsonc<Record<string, unknown>>(content);
+  const after = { ...before };
+  mutator(after);
+
+  let result = content;
+  const keys = new Set([...Object.keys(before), ...Object.keys(after)]);
+  for (const key of keys) {
+    if (Object.is(before[key], after[key])) continue;
+    result = applyEdits(
+      result,
+      modify(result, [key], after[key], {
+        formattingOptions: { tabSize: 2, insertSpaces: true },
+      }),
+    );
+  }
+
+  return result.endsWith("\n") ? result : `${result}\n`;
 }

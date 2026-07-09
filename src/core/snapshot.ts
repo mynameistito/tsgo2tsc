@@ -1,7 +1,7 @@
 import { mkdir, writeFile, readFile, cp, rm } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { readText } from "../utils/fs.js";
-import type { MigrationAction, MigrationRecord } from "../types.js";
+import type { MigrationAction, MigrationRecord, SerializableMigrationAction } from "../types.js";
 
 const BACKUP_DIR = ".tsgo2tsc";
 
@@ -32,11 +32,7 @@ export async function createSnapshot(
     await writeFile(dest, content, "utf8");
   }
 
-  await writeFile(
-    join(snapshotDir, "migration.json"),
-    `${JSON.stringify(record, null, 2)}\n`,
-    "utf8",
-  );
+  await writeMigrationRecord(snapshotDir, record);
 
   if (afterPatch) {
     await writeFile(join(snapshotDir, "after.patch"), afterPatch, "utf8");
@@ -49,6 +45,32 @@ export async function createSnapshot(
   );
 
   return snapshotDir;
+}
+
+export async function writeMigrationRecord(
+  snapshotDir: string,
+  record: MigrationRecord,
+): Promise<void> {
+  await writeFile(
+    join(snapshotDir, "migration.json"),
+    `${JSON.stringify(record, null, 2)}\n`,
+    "utf8",
+  );
+}
+
+export function serializeActions(
+  actions: MigrationAction[],
+): SerializableMigrationAction[] {
+  return actions.map((action) => {
+    if (action.type !== "patchFile") {
+      return action;
+    }
+    return {
+      type: "patchFile",
+      path: action.path,
+      description: action.description,
+    };
+  });
 }
 
 export async function getLatestSnapshot(cwd: string): Promise<string | null> {

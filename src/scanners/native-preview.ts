@@ -82,7 +82,7 @@ async function scanLockfilesForNativePreview(
   ctx: ProjectContext,
 ): Promise<Array<{ dir: string }>> {
   const lockFiles = ctx.files.filter((f) =>
-    /(bun\.lock|package-lock\.json|pnpm-lock\.yaml|yarn\.lock)$/.test(
+    /(bun\.lockb?|package-lock\.json|npm-shrinkwrap\.json|pnpm-lock\.yaml|yarn\.lock)$/.test(
       f.replace(/\\/g, "/"),
     ),
   );

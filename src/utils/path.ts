@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 
 export function resolveTargetDir(input?: string): string {
@@ -6,6 +6,10 @@ export function resolveTargetDir(input?: string): string {
 
   if (!existsSync(target)) {
     throw new Error(`Directory not found: ${target}`);
+  }
+
+  if (!statSync(target).isDirectory()) {
+    throw new Error(`Project path is not a directory: ${target}`);
   }
 
   if (!existsSync(resolve(target, "package.json"))) {

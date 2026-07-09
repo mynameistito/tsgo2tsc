@@ -5,6 +5,8 @@ import { applyActions } from "../core/apply.js";
 import {
   collectFilesToBackup,
   createSnapshot,
+  serializeActions,
+  writeMigrationRecord,
 } from "../core/snapshot.js";
 import {
   writeReport,
@@ -58,24 +60,23 @@ export async function runMigrate(options: MigrateOptions): Promise<void> {
     mode: plan.mode,
     packageManager: ctx.packageManager,
     filesChanged: [],
-    actions: plan.actions,
+    actions: serializeActions(plan.actions),
     commandsRun: [],
     warnings: plan.warnings
       .filter((a) => a.type === "warn")
       .map((a) => (a.type === "warn" ? a.message : "")),
   };
 
-  const filesChanged = await applyActions(plan.actions);
-  record.filesChanged = filesChanged.map((f) =>
-    relativePath(ctx.rootDir, f),
-  );
-
   const snapshotDir = await createSnapshot(
     ctx.rootDir,
     filesToBackup,
     record,
   );
-  await writeSnapshotReport(snapshotDir, plan, record);
+
+  const filesChanged = await applyActions(plan.actions);
+  record.filesChanged = filesChanged.map((f) =>
+    relativePath(ctx.rootDir, f),
+  );
 
   if (options.install || options.test) {
     const verification = await runVerification(
@@ -89,6 +90,8 @@ export async function runMigrate(options: MigrateOptions): Promise<void> {
     record.verification = verification.results;
   }
 
+  await writeMigrationRecord(snapshotDir, record);
+  await writeSnapshotReport(snapshotDir, plan, record);
   await writeReport(ctx.rootDir, plan, record);
 
   log.success(`Migration applied (${plan.mode}).`);

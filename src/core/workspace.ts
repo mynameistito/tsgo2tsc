@@ -103,9 +103,9 @@ export function findDependencySection(
   pkg: PackageJson,
   name: string,
 ): "dependencies" | "devDependencies" | "peerDependencies" | "optionalDependencies" | null {
-  if (pkg.dependencies?.[name]) return "dependencies";
-  if (pkg.devDependencies?.[name]) return "devDependencies";
-  if (pkg.peerDependencies?.[name]) return "peerDependencies";
-  if (pkg.optionalDependencies?.[name]) return "optionalDependencies";
+  if (pkg.dependencies && name in pkg.dependencies) return "dependencies";
+  if (pkg.devDependencies && name in pkg.devDependencies) return "devDependencies";
+  if (pkg.peerDependencies && name in pkg.peerDependencies) return "peerDependencies";
+  if (pkg.optionalDependencies && name in pkg.optionalDependencies) return "optionalDependencies";
   return null;
 }

@@ -20,6 +20,13 @@ function collect(value: string, previous: string[]): string[] {
   return [...previous, value];
 }
 
+function parseChoice<T extends string>(value: string, choices: readonly T[]): T {
+  if (choices.includes(value as T)) {
+    return value as T;
+  }
+  throw new Error(`Invalid value "${value}". Expected one of: ${choices.join(", ")}`);
+}
+
 function sharedOptions(cmd: Command): Command {
   return cmd
     .argument("[dir]", "Project directory", ".")
@@ -29,11 +36,13 @@ function sharedOptions(cmd: Command): Command {
     .option(
       "--compat <mode>",
       "Compatibility mode: auto, force, or off",
+      (value) => parseChoice(value, ["auto", "force", "off"] as const),
       "auto",
     )
     .option(
       "--pm <manager>",
       "Package manager: auto, bun, npm, pnpm, or yarn",
+      (value) => parseChoice(value, ["auto", "bun", "npm", "pnpm", "yarn"] as const),
       "auto",
     )
     .option("--include <glob>", "Include glob pattern (repeatable)", collect, [])
@@ -41,8 +50,8 @@ function sharedOptions(cmd: Command): Command {
 }
 
 function parseIntOption(value: string): number {
-  const parsed = Number.parseInt(value, 10);
-  if (Number.isNaN(parsed)) {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed)) {
     throw new Error(`Invalid number: ${value}`);
   }
   return parsed;
@@ -128,4 +137,4 @@ program
     await runRollback(resolveTargetDir(opts.cwd ?? dir));
   });
 
-program.parse();
+await program.parseAsync();

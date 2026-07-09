@@ -1,4 +1,5 @@
 import { readText } from "../utils/fs.js";
+import { hasTsgoInvocation } from "./package-json.js";
 import type { ProjectContext } from "../types.js";
 
 export async function scanCiFiles(
@@ -13,7 +14,7 @@ export async function scanCiFiles(
   for (const file of ciFiles) {
     const content = await readText(file);
     if (!content) continue;
-    if (/\btsgo\b/.test(content)) {
+    if (content.split("\n").some((line) => hasTsgoInvocation(line))) {
       results.push({ file, hasTsgo: true });
     }
   }

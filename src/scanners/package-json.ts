@@ -14,7 +14,7 @@ export function scanPackageJson(pkg: WorkspacePackage): {
   let hasTsgoScript = false;
 
   for (const [name, value] of Object.entries(pkg.packageJson.scripts ?? {})) {
-    if (/\btsgo\b/.test(value)) {
+    if (hasTsgoInvocation(value)) {
       hasTsgoScript = true;
       scripts.push({ name, value });
     }
@@ -48,9 +48,14 @@ export const COMPAT_DEPENDENCIES = [
   "svelte",
   "svelte-check",
   "@angular/compiler-cli",
-  "mdx",
+  "@mdx-js/mdx",
   "eslint-import-resolver-typescript",
 ] as const;
+
+export function hasTsgoInvocation(command: string): boolean {
+  return /(^|[;&|({}\s])(?:bunx|npx|pnpm|yarn)\s+tsgo(?=$|[\s;&|)])/u.test(command) ||
+    /(^|[;&|({}\s])tsgo(?=$|[\s;&|)])/u.test(command);
+}
 
 export function detectCompatDependencies(pkg: PackageJson): string[] {
   const deps = getAllDependencies(pkg);

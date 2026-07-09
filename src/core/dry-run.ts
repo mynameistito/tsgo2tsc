@@ -20,6 +20,14 @@ export function highlightChange(
   const max = Math.min(from.length, to.length);
   while (start < max && from[start] === to[start]) start++;
 
+  while (
+    start > 0 &&
+    /[A-Za-z0-9_-]/.test(from[start - 1] ?? "") &&
+    /[A-Za-z0-9_-]/.test(to[start - 1] ?? "")
+  ) {
+    start--;
+  }
+
   let fromEnd = from.length;
   let toEnd = to.length;
   while (
@@ -76,15 +84,18 @@ function printScriptChange(
 
 function printPatchChange(
   content: string,
+  action: Extract<MigrationAction, { type: "patchFile" }>,
   description: string,
   line: number | undefined,
 ): void {
   const raw = line !== undefined ? getLineContent(content, line) : description;
+  const patched = action.apply(content);
+  const patchedRaw = line !== undefined ? getLineContent(patched, line) : "";
   printMinusLine(line, pc.yellow(raw || description));
-  if (description.includes("remove")) {
+  if (patchedRaw && patchedRaw !== raw) {
+    printPlusLine(line, pc.green(patchedRaw));
+  } else if (description.includes("remove")) {
     printPlusLine(line, pc.dim("(removed)"));
-  } else if (description.includes("typescript.tsdk")) {
-    printPlusLine(line, pc.green('  "typescript.tsdk": "node_modules/typescript/lib"'));
   } else {
     printPlusLine(line, pc.green(description));
   }
@@ -138,7 +149,7 @@ function printFileAction(
       );
       break;
     case "patchFile":
-      printPatchChange(content, action.description, minusLine ?? plusLine);
+      printPatchChange(content, action, action.description, minusLine ?? plusLine);
       break;
   }
 }

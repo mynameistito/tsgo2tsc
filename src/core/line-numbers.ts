@@ -22,7 +22,7 @@ export function findLineContaining(
 export function findDependencyInsertLine(
   content: string,
   section: string,
-): number {
+): number | null {
   const lines = content.split("\n");
   let inSection = false;
   let sectionStart = 1;
@@ -45,7 +45,7 @@ export function findDependencyInsertLine(
     }
   }
 
-  return lastDepLine > 0 ? lastDepLine + 1 : sectionStart;
+  return lastDepLine > 0 ? lastDepLine + 1 : null;
 }
 
 export function resolveActionLines(
@@ -63,7 +63,7 @@ export function resolveActionLines(
         return { minusLine: existing, plusLine: existing };
       }
       return {
-        plusLine: findDependencyInsertLine(content, action.section),
+        plusLine: findDependencyInsertLine(content, action.section) ?? undefined,
       };
     }
     case "replaceScriptToken": {

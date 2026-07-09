@@ -4,11 +4,17 @@ import { dirname, join } from "node:path";
 export async function readText(path: string): Promise<string | null> {
   try {
     return await readFile(path, "utf8");
-  } catch {
-    return null;
+  } catch (error) {
+    if (isNodeError(error) && error.code === "ENOENT") {
+      return null;
+    }
+    throw error;
   }
 }
 
+function isNodeError(error: unknown): error is NodeJS.ErrnoException {
+  return error instanceof Error && "code" in error;
+}
 export async function writeText(path: string, content: string): Promise<void> {
   await mkdir(dirname(path), { recursive: true });
   await writeFile(path, content, "utf8");
@@ -24,9 +30,13 @@ export async function removeDir(path: string): Promise<void> {
 
 export function relativePath(root: string, file: string): string {
   const normalized = file.replace(/\\/g, "/");
-  const rootNorm = root.replace(/\\/g, "/");
-  if (normalized.startsWith(rootNorm)) {
-    return normalized.slice(rootNorm.length).replace(/^\//, "") || ".";
+  const rootNorm = root.replace(/\\/g, "/").replace(/\/$/, "");
+  if (normalized === rootNorm) {
+    return ".";
+  }
+  const rootPrefix = `${rootNorm}/`;
+  if (normalized.startsWith(rootPrefix)) {
+    return normalized.slice(rootPrefix.length) || ".";
   }
   return normalized;
 }

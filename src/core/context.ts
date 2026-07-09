@@ -7,12 +7,16 @@ export async function buildProjectContext(
   options: MigrateOptions,
 ): Promise<ProjectContext> {
   const packageManager = resolvePackageManager(options.cwd, options.pm);
-  const packages = await discoverWorkspaces(options.cwd);
   const files = await scanProjectFiles(
     options.cwd,
     options.include,
     options.exclude,
   );
+  const discoveredPackages = await discoverWorkspaces(options.cwd);
+  const fileSet = new Set(files.map((file) => file.replace(/\\/g, "/")));
+  const packages = options.include || options.exclude
+    ? discoveredPackages.filter((pkg) => fileSet.has(pkg.packageJsonPath.replace(/\\/g, "/")))
+    : discoveredPackages;
 
   return {
     rootDir: options.cwd,

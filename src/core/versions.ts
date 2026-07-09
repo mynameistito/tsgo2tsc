@@ -17,6 +17,11 @@ export interface MigrationTargetVersions {
 const FALLBACK_STABLE = "^7.0.0";
 const FALLBACK_TYPESCRIPT6 = "^6.0.0";
 
+function matchingMajor(version: string | null, major: number): string | undefined {
+  if (!version) return undefined;
+  return version.split(".")[0] === String(major) ? version : undefined;
+}
+
 async function fetchNpmDistVersion(
   packageName: string,
   distTag: string,
@@ -38,7 +43,7 @@ export async function resolveMigrationTargetVersions(
   mode: MigrationMode,
 ): Promise<MigrationTargetVersions> {
   if (mode === "stable") {
-    const latest = await fetchNpmDistVersion("typescript", "latest");
+    const latest = matchingMajor(await fetchNpmDistVersion("typescript", "latest"), 7);
     return {
       typescript: {
         range: FALLBACK_STABLE,
@@ -64,10 +69,12 @@ export async function resolveMigrationTargetVersions(
   }
 
   if (mode === "compat-stable") {
-    const [ts7, ts6] = await Promise.all([
+    const [ts7Latest, ts6Latest] = await Promise.all([
       fetchNpmDistVersion("typescript", "latest"),
       fetchNpmDistVersion("@typescript/typescript6", "latest"),
     ]);
+    const ts7 = matchingMajor(ts7Latest, 7);
+    const ts6 = matchingMajor(ts6Latest, 6);
     return {
       nativeAlias: {
         range: `npm:typescript@${FALLBACK_STABLE}`,

@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { PackageManager } from "../types.js";
 
@@ -16,7 +16,23 @@ export function detectPackageManager(rootDir: string): PackageManager {
       return pm;
     }
   }
+  const declared = readDeclaredPackageManager(rootDir);
+  if (declared) return declared;
   return "npm";
+}
+
+function readDeclaredPackageManager(rootDir: string): PackageManager | null {
+  try {
+    const pkg = JSON.parse(readFileSync(join(rootDir, "package.json"), "utf8")) as {
+      packageManager?: string;
+    };
+    const manager = pkg.packageManager?.split("@")[0];
+    return manager === "bun" || manager === "npm" || manager === "pnpm" || manager === "yarn"
+      ? manager
+      : null;
+  } catch {
+    return null;
+  }
 }
 
 export function resolvePackageManager(
@@ -59,14 +75,22 @@ export function runScriptCommand(
 }
 
 export function tscCommand(pm: PackageManager, args: string[]): [string, string[]] {
+  return binaryCommand(pm, "tsc", args);
+}
+
+export function tsc6Command(pm: PackageManager, args: string[]): [string, string[]] {
+  return binaryCommand(pm, "tsc6", args);
+}
+
+function binaryCommand(pm: PackageManager, binary: string, args: string[]): [string, string[]] {
   switch (pm) {
     case "bun":
-      return ["bunx", ["tsc", ...args]];
+      return ["bunx", [binary, ...args]];
     case "pnpm":
-      return ["pnpm", ["exec", "tsc", ...args]];
+      return ["pnpm", ["exec", binary, ...args]];
     case "yarn":
-      return ["yarn", ["tsc", ...args]];
+      return ["yarn", [binary, ...args]];
     case "npm":
-      return ["npx", ["tsc", ...args]];
+      return ["npx", [binary, ...args]];
   }
 }

@@ -102,6 +102,15 @@ export type MigrationAction =
       packageDir?: string;
     };
 
+export type SerializableMigrationAction = Exclude<
+  MigrationAction,
+  { type: "patchFile" }
+> | {
+  type: "patchFile";
+  path: string;
+  description: string;
+};
+
 export interface MigrationPlan {
   mode: MigrationMode;
   packageModes: Map<string, MigrationMode>;
@@ -144,7 +153,7 @@ export interface MigrationRecord {
   mode: MigrationMode;
   packageManager: PackageManager;
   filesChanged: string[];
-  actions: MigrationAction[];
+  actions: SerializableMigrationAction[];
   commandsRun: string[];
   warnings: string[];
   verification?: VerificationResult[];

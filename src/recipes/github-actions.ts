@@ -1,6 +1,6 @@
 import type { MigrationAction, ProjectContext } from "../types.js";
 import { scanCiFiles } from "../scanners/ci.js";
-import { replaceTsgoInCommand } from "../patchers/text.js";
+import { replaceTsgoInRunLine } from "../patchers/text.js";
 
 export async function planGithubActions(
   ctx: ProjectContext,
@@ -26,10 +26,13 @@ export async function planGithubActions(
 
 function patchCiContent(content: string): string {
   const lines = content.split("\n");
-  return lines
-    .map((line) => {
-      if (!/\btsgo\b/.test(line)) return line;
-      return replaceTsgoInCommand(line);
-    })
-    .join("\n");
+  const patched = lines.map((line) => replaceTsgoInRunLine(line));
+  const bunxTscIndex = patched.findIndex((line, index) =>
+    lines[index] !== line && /\brun:\s*bunx\s+tsc\b/u.test(line),
+  );
+  if (bunxTscIndex >= 0 && !patched.some((line) => /oven-sh\/setup-bun/u.test(line))) {
+    const indent = /^(\s*)/u.exec(patched[bunxTscIndex])?.[1] ?? "";
+    patched.splice(bunxTscIndex, 0, `${indent}- uses: oven-sh/setup-bun@v1`);
+  }
+  return patched.join("\n");
 }

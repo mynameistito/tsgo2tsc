@@ -65,10 +65,10 @@ export const angularRecipe: Recipe = {
 export const mdxRecipe: Recipe = {
   name: "mdx",
   detect(_ctx, pkg) {
-    const found = hasDependency(pkg.packageJson, "mdx");
+    const found = hasDependency(pkg.packageJson, "@mdx-js/mdx");
     return {
       detected: found,
-      reasons: found ? ["found mdx"] : [],
+      reasons: found ? ["found @mdx-js/mdx"] : [],
     };
   },
 };

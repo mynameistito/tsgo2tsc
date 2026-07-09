@@ -7,6 +7,7 @@ import type {
   MigrationPlan,
   MigrationRecord,
   PackageManager,
+  SerializableMigrationAction,
   VerificationResult,
 } from "../types.js";
 
@@ -107,7 +108,7 @@ function formatSummary(mode: MigrationMode, tools: string[]): string {
   return "Migration completed to stable `typescript@^7.0.0` with `tsc`.";
 }
 
-function formatDependencyChanges(actions: MigrationAction[]): string[] {
+function formatDependencyChanges(actions: SerializableMigrationAction[]): string[] {
   const lines: string[] = [];
   for (const action of actions) {
     if (action.type === "removeDependency") {
@@ -119,7 +120,7 @@ function formatDependencyChanges(actions: MigrationAction[]): string[] {
   return lines.length > 0 ? lines : ["- none"];
 }
 
-function formatScriptChanges(actions: MigrationAction[]): string[] {
+function formatScriptChanges(actions: SerializableMigrationAction[]): string[] {
   const lines: string[] = [];
   for (const action of actions) {
     if (action.type === "replaceScriptToken") {
@@ -133,7 +134,7 @@ function formatScriptChanges(actions: MigrationAction[]): string[] {
   return lines.length > 0 ? lines : ["- none"];
 }
 
-function formatWarnings(actions: MigrationAction[]): string[] {
+function formatWarnings(actions: Array<MigrationAction | SerializableMigrationAction>): string[] {
   const warns = actions.filter((a) => a.type === "warn");
   if (warns.length === 0) return ["- none"];
   return warns.map((w) => {

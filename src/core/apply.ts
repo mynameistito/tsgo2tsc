@@ -11,7 +11,7 @@ export async function applyActions(
 ): Promise<string[]> {
   const filesChanged = new Set<string>();
   const byPackageJson = new Map<string, MigrationAction[]>();
-  const filePatches = new Map<string, MigrationAction>();
+  const filePatches = new Map<string, MigrationAction[]>();
 
   for (const action of actions) {
     if (action.type === "warn") continue;
@@ -25,7 +25,9 @@ export async function applyActions(
       list.push(action);
       byPackageJson.set(action.packageJsonPath, list);
     } else if (action.type === "patchFile") {
-      filePatches.set(action.path, action);
+      const list = filePatches.get(action.path) ?? [];
+      list.push(action);
+      filePatches.set(action.path, list);
     }
   }
 
@@ -39,15 +41,21 @@ export async function applyActions(
       }
     });
 
-    await writeText(path, patched);
-    filesChanged.add(path);
+    if (patched !== content) {
+      await writeText(path, patched);
+      filesChanged.add(path);
+    }
   }
 
-  for (const [path, action] of filePatches) {
-    if (action.type !== "patchFile") continue;
+  for (const [path, actions] of filePatches) {
     const content = await readText(path);
     if (!content) continue;
-    const patched = action.apply(content);
+    let patched = content;
+    for (const action of actions) {
+      if (action.type === "patchFile") {
+        patched = action.apply(patched);
+      }
+    }
     if (patched !== content) {
       await writeText(path, patched);
       filesChanged.add(path);

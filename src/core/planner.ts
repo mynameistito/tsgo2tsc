@@ -96,7 +96,7 @@ export async function createMigrationPlan(
     }
   }
 
-  actions.push(...(await planVscodeActions(ctx)));
+  actions.push(...(await planVscodeActions(ctx, mode)));
   actions.push(...(await planGithubActions(ctx)));
 
   return {

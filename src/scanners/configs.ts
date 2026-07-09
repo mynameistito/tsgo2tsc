@@ -1,5 +1,5 @@
 import { readText } from "../utils/fs.js";
-import { join } from "node:path";
+import { parseJsonc } from "../patchers/jsonc.js";
 import type { ProjectContext } from "../types.js";
 
 const DEPRECATED_TSCONFIG_KEYS = [
@@ -25,9 +25,9 @@ export async function scanTsconfigWarnings(
     if (!content) continue;
 
     try {
-      const config = JSON.parse(stripJsonComments(content)) as {
+      const config = parseJsonc<{
         compilerOptions?: Record<string, unknown>;
-      };
+      }>(content);
       const opts = config.compilerOptions ?? {};
 
       if (opts.moduleResolution === "node") {
@@ -64,10 +64,6 @@ export async function scanTsconfigWarnings(
   return warnings;
 }
 
-function stripJsonComments(content: string): string {
-  return content.replace(/\/\*[\s\S]*?\*\/|\/\/.*/g, "");
-}
-
 export async function scanTsdownDeclaration(
   ctx: ProjectContext,
 ): Promise<boolean> {
@@ -78,13 +74,60 @@ export async function scanTsdownDeclaration(
   for (const file of tsdownConfigs) {
     const content = await readText(file);
     if (!content) continue;
-    if (
-      /\bdts\s*:\s*true\b/.test(content) ||
-      /\bdeclaration\s*:\s*true\b/.test(content)
-    ) {
+    const uncommented = stripComments(content);
+    if (/\bdts\s*:\s*true\b/.test(uncommented) || /\bdeclaration\s*:\s*true\b/.test(uncommented)) {
       return true;
     }
   }
 
   return false;
+}
+
+function stripComments(content: string): string {
+  let result = "";
+  let inString: string | null = null;
+  let escaped = false;
+
+  for (let i = 0; i < content.length; i++) {
+    const char = content[i];
+    const next = content[i + 1];
+
+    if (inString) {
+      result += char;
+      if (escaped) {
+        escaped = false;
+      } else if (char === "\\") {
+        escaped = true;
+      } else if (char === inString) {
+        inString = null;
+      }
+      continue;
+    }
+
+    if (char === '"' || char === "'" || char === "`") {
+      inString = char;
+      result += char;
+      continue;
+    }
+
+    if (char === "/" && next === "/") {
+      while (i < content.length && content[i] !== "\n") i++;
+      result += "\n";
+      continue;
+    }
+
+    if (char === "/" && next === "*") {
+      i += 2;
+      while (i < content.length && !(content[i] === "*" && content[i + 1] === "/")) {
+        if (content[i] === "\n") result += "\n";
+        i++;
+      }
+      i++;
+      continue;
+    }
+
+    result += char;
+  }
+
+  return result;
 }
