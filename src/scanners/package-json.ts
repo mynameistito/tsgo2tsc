@@ -53,8 +53,8 @@ export const COMPAT_DEPENDENCIES = [
 ] as const;
 
 export function hasTsgoInvocation(command: string): boolean {
-  return /(^|[;&|({}\s"'])(?:bunx|npx|pnpm|yarn)\s+tsgo(?=$|[\s;&|)"'])/u.test(command) ||
-    /(^|[;&|({}\s"'])tsgo(?=$|[\s;&|)"'])/u.test(command);
+  return /(^|[;&|({}\s"'/])(?:bunx|npx|pnpm|yarn)\s+tsgo(?=$|[\s;&|)"'])/u.test(command) ||
+    /(^|[;&|({}\s"'/])tsgo(?=$|[\s;&|)"'])/u.test(command);
 }
 
 export function detectCompatDependencies(pkg: PackageJson): string[] {

@@ -1,4 +1,4 @@
-import { cp, mkdtemp, readFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, test } from "bun:test";
@@ -9,6 +9,7 @@ import {
   collectFilesToBackup,
   createSnapshot,
   rollbackFromSnapshot,
+  serializeActions,
 } from "../src/core/snapshot.js";
 import { replaceTsgoInCommand } from "../src/patchers/text.js";
 import { detectPackageManager } from "../src/core/package-manager.js";
@@ -18,6 +19,8 @@ import {
   findLineContaining,
   resolveActionLines,
 } from "../src/core/line-numbers.js";
+import { planGithubActions } from "../src/recipes/github-actions.js";
+import { parseJsonc } from "../src/patchers/jsonc.js";
 import { resolveTargetDir } from "../src/utils/path.js";
 import type { MigrateOptions } from "../src/types.js";
 
@@ -146,6 +149,74 @@ describe("replaceTsgoInCommand", () => {
     );
     expect(replaceTsgoInCommand("tsgo -b")).toBe("tsc -b");
     expect(replaceTsgoInCommand("tsgo --build")).toBe("tsc --build");
+    expect(replaceTsgoInCommand("./node_modules/.bin/tsgo --noEmit")).toBe(
+      "./node_modules/.bin/tsc --noEmit",
+    );
+  });
+});
+
+describe("parseJsonc", () => {
+  test("throws on malformed JSONC", () => {
+    expect(() => parseJsonc("{")).toThrow(/Invalid JSONC/);
+  });
+});
+
+describe("github-actions patching", () => {
+  test("patches multiline run blocks and named steps", async () => {
+    const cwd = await mkdtemp(join(tmpdir(), "tsgo2tsc-ci-"));
+    await writeFile(
+      join(cwd, "package.json"),
+      JSON.stringify({
+        name: "ci-fixture",
+        devDependencies: { "@typescript/native-preview": "latest" },
+      }),
+      "utf8",
+    );
+    const workflowDir = join(cwd, ".github", "workflows");
+    await mkdir(workflowDir, { recursive: true });
+    await writeFile(
+      join(workflowDir, "ci.yml"),
+      [
+        "name: CI",
+        "on: push",
+        "jobs:",
+        "  typecheck:",
+        "    runs-on: ubuntu-latest",
+        "    steps:",
+        "      - uses: actions/checkout@v4",
+        "      - name: Typecheck",
+        "        run: bunx tsgo --noEmit",
+        "      - name: Build",
+        "        run: |",
+        "          bunx tsgo --noEmit",
+        "          echo done",
+        "",
+      ].join("\n"),
+      "utf8",
+    );
+
+    const ctx = await buildProjectContext(
+      baseOptions(cwd, { updateCi: true }),
+    );
+    const actions = await planGithubActions(ctx);
+    await applyActions(actions);
+    const actual = await readFile(join(workflowDir, "ci.yml"), "utf8");
+    expect(actual).toContain("- uses: oven-sh/setup-bun@v1");
+    expect(actual).toContain("run: bunx tsc --noEmit");
+    expect(actual).toContain("bunx tsc --noEmit");
+    expect(actual).not.toContain("tsgo");
+    expect(actual).toMatch(/^\s+- uses: oven-sh\/setup-bun@v1$/m);
+  });
+});
+
+describe("include globs", () => {
+  test("keeps packages when include only matches source files", async () => {
+    const cwd = await copyFixture("simple-native-preview");
+    const ctx = await buildProjectContext(
+      baseOptions(cwd, { include: ["src/**/*.ts"] }),
+    );
+    expect(ctx.packages.length).toBeGreaterThan(0);
+    expect(ctx.packages.some((p) => p.dir === ".")).toBe(true);
   });
 });
 
@@ -337,7 +408,7 @@ describe("migration fixtures", () => {
       mode: plan.mode,
       packageManager: ctx.packageManager,
       filesChanged: [],
-      actions: plan.actions,
+      actions: serializeActions(plan.actions),
       commandsRun: [],
       warnings: [],
     });

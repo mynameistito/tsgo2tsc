@@ -111,6 +111,8 @@ export type SerializableMigrationAction = Exclude<
   type: "patchFile";
   path: string;
   description: string;
+  /** Prevent assigning live plan actions that still carry apply(). */
+  apply?: never;
 };
 
 export interface MigrationPlan {

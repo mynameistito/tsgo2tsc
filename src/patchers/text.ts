@@ -1,12 +1,12 @@
 /** Token-safe tsgo -> tsc replacements in command strings */
 const TSGo_REPLACEMENTS: Array<{ pattern: RegExp; replacement: string }> = [
-  { pattern: /(^|[;&|({}\s])bunx\s+tsgo(?=$|[\s;&|)])/gu, replacement: "$1bunx tsc" },
-  { pattern: /(^|[;&|({}\s])npx\s+tsgo(?=$|[\s;&|)])/gu, replacement: "$1npx tsc" },
-  { pattern: /(^|[;&|({}\s])pnpm\s+tsgo(?=$|[\s;&|)])/gu, replacement: "$1pnpm tsc" },
-  { pattern: /(^|[;&|({}\s])yarn\s+tsgo(?=$|[\s;&|)])/gu, replacement: "$1yarn tsc" },
-  { pattern: /(^|[;&|({}\s])tsgo\s+--build\b/gu, replacement: "$1tsc --build" },
-  { pattern: /(^|[;&|({}\s])tsgo\s+-b\b/gu, replacement: "$1tsc -b" },
-  { pattern: /(^|[;&|({}\s])tsgo(?=$|[\s;&|)])/gu, replacement: "$1tsc" },
+  { pattern: /(^|[;&|({}\s/])bunx\s+tsgo(?=$|[\s;&|)])/gu, replacement: "$1bunx tsc" },
+  { pattern: /(^|[;&|({}\s/])npx\s+tsgo(?=$|[\s;&|)])/gu, replacement: "$1npx tsc" },
+  { pattern: /(^|[;&|({}\s/])pnpm\s+tsgo(?=$|[\s;&|)])/gu, replacement: "$1pnpm tsc" },
+  { pattern: /(^|[;&|({}\s/])yarn\s+tsgo(?=$|[\s;&|)])/gu, replacement: "$1yarn tsc" },
+  { pattern: /(^|[;&|({}\s/])tsgo\s+--build\b/gu, replacement: "$1tsc --build" },
+  { pattern: /(^|[;&|({}\s/])tsgo\s+-b\b/gu, replacement: "$1tsc -b" },
+  { pattern: /(^|[;&|({}\s/])tsgo(?=$|[\s;&|)])/gu, replacement: "$1tsc" },
 ];
 
 export function replaceTsgoInCommand(command: string): string {

@@ -1,7 +1,24 @@
-import { parse, modify, applyEdits } from "jsonc-parser";
+import {
+  parse,
+  modify,
+  applyEdits,
+  printParseErrorCode,
+  type ParseError,
+} from "jsonc-parser";
 
 export function parseJsonc<T>(content: string): T {
-  return parse(content) as T;
+  const errors: ParseError[] = [];
+  const result = parse(content, errors, { allowTrailingComma: true });
+  if (errors.length > 0) {
+    const first = errors[0]!;
+    throw new Error(
+      `Invalid JSONC at offset ${first.offset}: ${printParseErrorCode(first.error)}`,
+    );
+  }
+  if (result === undefined) {
+    throw new Error("Invalid JSONC: empty or unreadable document");
+  }
+  return result as T;
 }
 
 export function patchJsonc(

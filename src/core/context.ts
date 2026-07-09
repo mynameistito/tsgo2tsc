@@ -12,11 +12,9 @@ export async function buildProjectContext(
     options.include,
     options.exclude,
   );
-  const discoveredPackages = await discoverWorkspaces(options.cwd);
-  const fileSet = new Set(files.map((file) => file.replace(/\\/g, "/")));
-  const packages = options.include || options.exclude
-    ? discoveredPackages.filter((pkg) => fileSet.has(pkg.packageJsonPath.replace(/\\/g, "/")))
-    : discoveredPackages;
+  // Include/exclude only scopes scanned files. Package discovery stays
+  // independent so `--include "src/**/*.ts"` does not drop every package.
+  const packages = await discoverWorkspaces(options.cwd);
 
   return {
     rootDir: options.cwd,
