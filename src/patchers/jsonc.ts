@@ -1,5 +1,4 @@
 import { parse, modify, applyEdits } from "jsonc-parser";
-import type { PackageJson } from "../types.js";
 
 export function parseJsonc<T>(content: string): T {
   return parse(content) as T;
@@ -24,13 +23,13 @@ export function patchJsonSettings(
   mutator: (settings: Record<string, unknown>) => void,
 ): string {
   const before = parseJsonc<Record<string, unknown>>(content);
-  const after = { ...before };
+  const after = structuredClone(before) as Record<string, unknown>;
   mutator(after);
 
   let result = content;
   const keys = new Set([...Object.keys(before), ...Object.keys(after)]);
   for (const key of keys) {
-    if (Object.is(before[key], after[key])) continue;
+    if (JSON.stringify(before[key]) === JSON.stringify(after[key])) continue;
     result = applyEdits(
       result,
       modify(result, [key], after[key], {

@@ -1,4 +1,4 @@
-import { mkdir, writeFile, readFile, cp, rm } from "node:fs/promises";
+import { mkdir, writeFile, readFile, cp, readdir } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { readText } from "../utils/fs.js";
 import type { MigrationAction, MigrationRecord, SerializableMigrationAction } from "../types.js";
@@ -73,15 +73,28 @@ export function serializeActions(
   });
 }
 
-export async function getLatestSnapshot(cwd: string): Promise<string | null> {
+export async function getLatestSnapshotInfo(
+  cwd: string,
+): Promise<{ snapshotDir: string; createdAt?: string } | null> {
   const latestPath = join(getBackupRoot(cwd), "latest.json");
   try {
     const content = await readFile(latestPath, "utf8");
-    const latest = JSON.parse(content) as { snapshot: string };
-    return join(getBackupRoot(cwd), "snapshots", latest.snapshot);
+    const latest = JSON.parse(content) as {
+      snapshot: string;
+      createdAt?: string;
+    };
+    return {
+      snapshotDir: join(getBackupRoot(cwd), "snapshots", latest.snapshot),
+      createdAt: latest.createdAt,
+    };
   } catch {
     return null;
   }
+}
+
+export async function getLatestSnapshot(cwd: string): Promise<string | null> {
+  const info = await getLatestSnapshotInfo(cwd);
+  return info?.snapshotDir ?? null;
 }
 
 export async function rollbackFromSnapshot(
@@ -92,7 +105,6 @@ export async function rollbackFromSnapshot(
   const restored: string[] = [];
 
   async function restoreDir(dir: string, base: string): Promise<void> {
-    const { readdir, stat } = await import("node:fs/promises");
     const entries = await readdir(dir, { withFileTypes: true });
     for (const entry of entries) {
       const full = join(dir, entry.name);

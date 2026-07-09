@@ -24,6 +24,8 @@ const SCAN_PATTERNS = [
   "npm-shrinkwrap.json",
   "tsconfig.json",
   "tsconfig.*.json",
+  "**/tsconfig.json",
+  "**/tsconfig.*.json",
   "eslint.config.js",
   "eslint.config.mjs",
   "eslint.config.ts",

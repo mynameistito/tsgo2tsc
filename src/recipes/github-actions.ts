@@ -15,6 +15,7 @@ export async function planGithubActions(
       type: "patchFile",
       path: file,
       description: "replace tsgo with tsc in CI workflow",
+      searchHint: "tsgo",
       apply(content: string) {
         return patchCiContent(content);
       },

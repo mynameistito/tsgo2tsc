@@ -25,13 +25,13 @@ export function removeDependency(
   return true;
 }
 
-export function addDevDependency(
+export function addDependency(
   pkg: PackageJson,
+  section: DependencySection,
   name: string,
   version: string,
 ): void {
-  if (!pkg.devDependencies) {
-    pkg.devDependencies = {};
-  }
-  pkg.devDependencies[name] = version;
+  const deps = (pkg[section] as Record<string, string> | undefined) ?? {};
+  deps[name] = version;
+  pkg[section] = deps;
 }

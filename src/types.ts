@@ -78,7 +78,7 @@ export type MigrationAction =
   | {
       type: "addDependency";
       packageJsonPath: string;
-      section: "devDependencies";
+      section: DependencySection;
       name: string;
       version: string;
     }
@@ -93,6 +93,8 @@ export type MigrationAction =
       type: "patchFile";
       path: string;
       description: string;
+      /** Structured hint for dry-run line highlighting (not human description text). */
+      searchHint?: string;
       apply: (content: string) => string;
     }
   | {

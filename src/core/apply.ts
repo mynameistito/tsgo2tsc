@@ -2,7 +2,7 @@ import { readText, writeText } from "../utils/fs.js";
 import {
   patchPackageJsonContent,
   removeDependency,
-  addDevDependency,
+  addDependency,
 } from "../patchers/package-json.js";
 import type { MigrationAction, PackageJson } from "../types.js";
 
@@ -12,6 +12,7 @@ export async function applyActions(
   const filesChanged = new Set<string>();
   const byPackageJson = new Map<string, MigrationAction[]>();
   const filePatches = new Map<string, MigrationAction[]>();
+  const failures: Error[] = [];
 
   for (const action of actions) {
     if (action.type === "warn") continue;
@@ -53,13 +54,31 @@ export async function applyActions(
     let patched = content;
     for (const action of actions) {
       if (action.type === "patchFile") {
-        patched = action.apply(patched);
+        try {
+          patched = action.apply(patched);
+        } catch (err) {
+          failures.push(
+            err instanceof Error
+              ? err
+              : new Error(`Failed to patch ${path}: ${String(err)}`),
+          );
+        }
       }
     }
     if (patched !== content) {
       await writeText(path, patched);
       filesChanged.add(path);
     }
+  }
+
+  if (failures.length === 1) {
+    throw failures[0];
+  }
+  if (failures.length > 1) {
+    throw new AggregateError(
+      failures,
+      `Failed to apply ${failures.length} file patch(es)`,
+    );
   }
 
   return [...filesChanged];
@@ -74,7 +93,7 @@ function applyPackageJsonAction(
       removeDependency(pkg, action.section, action.name);
       break;
     case "addDependency":
-      addDevDependency(pkg, action.name, action.version);
+      addDependency(pkg, action.section, action.name, action.version);
       break;
     case "replaceScriptToken":
       if (pkg.scripts?.[action.scriptName] === action.from) {

@@ -1,41 +1,31 @@
-import type { MigrationAction, MigrationMode, ProjectContext, Recipe } from "../types.js";
-import { readText } from "../utils/fs.js";
-import { join } from "node:path";
 import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { scanVscodeSettings } from "../scanners/vscode.js";
-import { patchJsonSettings } from "../patchers/jsonc.js";
-import { parseJsonc } from "../patchers/jsonc.js";
+import { patchJsonSettings, parseJsonc } from "../patchers/jsonc.js";
+import type {
+  MigrationAction,
+  MigrationMode,
+  ProjectContext,
+  Recipe,
+} from "../types.js";
 
 export const vscodeRecipe: Recipe = {
   name: "vscode",
   detect(ctx) {
     try {
-      return detectVscodeContent(readFileSync(join(ctx.rootDir, ".vscode", "settings.json"), "utf8"));
+      return detectVscodeContent(
+        readFileSync(join(ctx.rootDir, ".vscode", "settings.json"), "utf8"),
+      );
     } catch {
       return { detected: false, reasons: [] };
     }
   },
 };
 
-export async function detectVscode(ctx: ProjectContext): Promise<{
+function detectVscodeContent(content: string): {
   detected: boolean;
   reasons: string[];
-}> {
-  const settingsPath = join(ctx.rootDir, ".vscode", "settings.json");
-  const content = await readText(settingsPath);
-  if (!content) return { detected: false, reasons: [] };
-
-  let settings: Record<string, unknown>;
-  try {
-    settings = parseJsonc<Record<string, unknown>>(content);
-  } catch {
-    return { detected: false, reasons: [] };
-  }
-
-  return detectVscodeSettings(settings);
-}
-
-function detectVscodeContent(content: string): { detected: boolean; reasons: string[] } {
+} {
   try {
     return detectVscodeSettings(parseJsonc<Record<string, unknown>>(content));
   } catch {
@@ -43,7 +33,10 @@ function detectVscodeContent(content: string): { detected: boolean; reasons: str
   }
 }
 
-function detectVscodeSettings(settings: Record<string, unknown>): { detected: boolean; reasons: string[] } {
+function detectVscodeSettings(settings: Record<string, unknown>): {
+  detected: boolean;
+  reasons: string[];
+} {
   const reasons: string[] = [];
   if (settings["js/ts.experimental.useTsgo"] === true) {
     reasons.push("found js/ts.experimental.useTsgo");
@@ -66,16 +59,24 @@ export async function planVscodeActions(
     return [];
   }
 
+  const description =
+    scan.hasUseTsgo && scan.hasNativePreviewTsdk
+      ? "remove js/ts.experimental.useTsgo and update typescript.tsdk"
+      : scan.hasUseTsgo
+        ? "remove js/ts.experimental.useTsgo"
+        : "update typescript.tsdk";
+
   return [
     {
       type: "patchFile",
       path: scan.file,
-      description: scan.hasUseTsgo
-        ? "remove js/ts.experimental.useTsgo"
-        : "update typescript.tsdk",
+      description,
+      searchHint: scan.hasUseTsgo ? "useTsgo" : "typescript.tsdk",
       apply(content: string) {
         return patchJsonSettings(content, (settings) => {
-          delete settings["js/ts.experimental.useTsgo"];
+          if (scan.hasUseTsgo) {
+            delete settings["js/ts.experimental.useTsgo"];
+          }
           if (scan.hasNativePreviewTsdk) {
             settings["typescript.tsdk"] = mode.startsWith("compat")
               ? "node_modules/@typescript/native/lib"

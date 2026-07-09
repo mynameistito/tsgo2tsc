@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { buildProjectContext } from "../core/context.js";
 import { createMigrationPlan } from "../core/planner.js";
-import { getLatestSnapshot, getBackupRoot } from "../core/snapshot.js";
+import { getLatestSnapshotInfo } from "../core/snapshot.js";
 import {
   formatNativePreviewFinding,
   scanNativePreviewUsage,
@@ -44,21 +44,15 @@ export async function runDoctor(options: MigrateOptions): Promise<void> {
     log.success("No @typescript/native-preview or tsgo usage found.");
   }
 
-  const latestPath = join(getBackupRoot(ctx.rootDir), "latest.json");
-  try {
-    const latest = JSON.parse(
-      await readFile(latestPath, "utf8"),
-    ) as { snapshot: string; createdAt: string };
-    log.info(`Latest migration snapshot: ${latest.createdAt}`);
-  } catch {
-    log.dim("No migration snapshot found.");
-  }
+  const latest = await getLatestSnapshotInfo(ctx.rootDir);
+  if (latest) {
+    if (latest.createdAt) {
+      log.info(`Latest migration snapshot: ${latest.createdAt}`);
+    }
 
-  const snapshotDir = await getLatestSnapshot(ctx.rootDir);
-  if (snapshotDir) {
     try {
       const record = JSON.parse(
-        await readFile(join(snapshotDir, "migration.json"), "utf8"),
+        await readFile(join(latest.snapshotDir, "migration.json"), "utf8"),
       ) as MigrationRecord;
       if (record.verification) {
         log.line();
@@ -74,6 +68,8 @@ export async function runDoctor(options: MigrateOptions): Promise<void> {
     } catch {
       // ignore
     }
+  } else {
+    log.dim("No migration snapshot found.");
   }
 
   if (plan.detectedTools.length > 0) {

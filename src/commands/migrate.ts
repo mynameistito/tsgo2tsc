@@ -5,6 +5,7 @@ import { applyActions } from "../core/apply.js";
 import {
   collectFilesToBackup,
   createSnapshot,
+  rollbackFromSnapshot,
   serializeActions,
   writeMigrationRecord,
 } from "../core/snapshot.js";
@@ -31,6 +32,16 @@ export async function runMigrate(options: MigrateOptions): Promise<void> {
     return;
   }
 
+  if (options.dryRun) {
+    await printDryRunOutput(
+      plan,
+      [...plan.actions, ...plan.warnings],
+      nativePreviewPkgs.length,
+      ctx.rootDir,
+    );
+    return;
+  }
+
   if (!options.yes && options.write) {
     const shouldProceed = await confirm({
       message: `Apply ${plan.mode} migration to ${nativePreviewPkgs.length || ctx.packages.length} package(s)?`,
@@ -39,16 +50,6 @@ export async function runMigrate(options: MigrateOptions): Promise<void> {
       log.info("Migration cancelled.");
       return;
     }
-  }
-
-  if (options.dryRun && !options.write) {
-    await printDryRunOutput(
-      plan,
-      [...plan.actions, ...plan.warnings],
-      nativePreviewPkgs.length,
-      ctx.rootDir,
-    );
-    return;
   }
 
   const filesToBackup = collectFilesToBackup(plan.actions);
@@ -73,7 +74,22 @@ export async function runMigrate(options: MigrateOptions): Promise<void> {
     record,
   );
 
-  const filesChanged = await applyActions(plan.actions);
+  let filesChanged: string[];
+  try {
+    filesChanged = await applyActions(plan.actions);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    try {
+      await rollbackFromSnapshot(ctx.rootDir, snapshotDir);
+      log.error(`Migration failed during apply; rolled back snapshot. ${message}`);
+    } catch {
+      log.error(
+        `Migration failed during apply: ${message}. Run \`tsgo2tsc rollback\` to restore from the snapshot.`,
+      );
+    }
+    process.exitCode = 1;
+    return;
+  }
   record.filesChanged = filesChanged.map((f) =>
     relativePath(ctx.rootDir, f),
   );

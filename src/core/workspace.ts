@@ -14,7 +14,12 @@ export async function discoverWorkspaces(
     return [];
   }
 
-  const rootPkg = JSON.parse(rootContent) as PackageJson;
+  let rootPkg: PackageJson;
+  try {
+    rootPkg = JSON.parse(rootContent) as PackageJson;
+  } catch {
+    return [];
+  }
   const patterns = await getWorkspacePatterns(rootDir, rootPkg);
 
   const dirs = new Set<string>(["."]);
@@ -41,11 +46,15 @@ export async function discoverWorkspaces(
     const content = await readText(packageJsonPath);
     if (!content) continue;
 
-    packages.push({
-      dir: dir === "." ? "." : dir.replace(/\\/g, "/"),
-      packageJsonPath,
-      packageJson: JSON.parse(content) as PackageJson,
-    });
+    try {
+      packages.push({
+        dir: dir === "." ? "." : dir.replace(/\\/g, "/"),
+        packageJsonPath,
+        packageJson: JSON.parse(content) as PackageJson,
+      });
+    } catch {
+      // skip invalid package.json and continue scanning
+    }
   }
 
   return packages;

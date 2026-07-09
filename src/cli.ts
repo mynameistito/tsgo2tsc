@@ -50,8 +50,8 @@ function sharedOptions(cmd: Command): Command {
 }
 
 function parseIntOption(value: string): number {
-  const parsed = Number(value);
-  if (!Number.isInteger(parsed)) {
+  const parsed = parseInt(value, 10);
+  if (Number.isNaN(parsed)) {
     throw new Error(`Invalid number: ${value}`);
   }
   return parsed;
@@ -137,4 +137,8 @@ program
     await runRollback(resolveTargetDir(opts.cwd ?? dir));
   });
 
-await program.parseAsync();
+await program.parseAsync().catch((err: unknown) => {
+  const message = err instanceof Error ? err.message : String(err);
+  console.error(message);
+  process.exitCode = 1;
+});

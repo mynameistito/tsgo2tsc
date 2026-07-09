@@ -1,6 +1,5 @@
 import { writeText } from "../utils/fs.js";
 import { join } from "node:path";
-import { groupActionsByFile } from "./planner.js";
 import type {
   MigrationAction,
   MigrationMode,
@@ -77,12 +76,26 @@ function formatReport(plan: MigrationPlan, record: MigrationRecord): string {
     "## Rollback command",
     "",
     "```sh",
-    "bunx tsgo2tsc rollback",
+    rollbackCommand(record.packageManager),
     "```",
     "",
   ];
 
   return lines.join("\n");
+}
+
+function rollbackCommand(pm: PackageManager): string {
+  switch (pm) {
+    case "bun":
+      return "bunx tsgo2tsc rollback";
+    case "pnpm":
+      return "pnpm dlx tsgo2tsc rollback";
+    case "yarn":
+      return "yarn dlx tsgo2tsc rollback";
+    case "npm":
+    default:
+      return "npx tsgo2tsc rollback";
+  }
 }
 
 function formatSummary(mode: MigrationMode, tools: string[]): string {
@@ -148,7 +161,7 @@ function formatVerification(results: VerificationResult[]): string[] {
   return results.map((r) =>
     r.success
       ? `- ✔ \`${r.command}\``
-      : `- ✖ \`${r.command}\`\n  \`\`\`\n${r.output.trim()}\n  \`\`\``,
+      : `- ✖ \`${r.command}\`\n  \`\`\`\n${(r.output ?? "").trim()}\n  \`\`\``,
   );
 }
 

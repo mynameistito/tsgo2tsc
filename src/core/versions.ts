@@ -22,13 +22,23 @@ function matchingMajor(version: string | null, major: number): string | undefine
   return version.split(".")[0] === String(major) ? version : undefined;
 }
 
+const DEFAULT_NPM_REGISTRY = "https://registry.npmjs.org";
+
+function resolveNpmRegistry(): string {
+  const fromEnv =
+    process.env.npm_config_registry ?? process.env.NPM_CONFIG_REGISTRY;
+  const registry = (fromEnv?.trim() || DEFAULT_NPM_REGISTRY).replace(/\/+$/, "");
+  return registry || DEFAULT_NPM_REGISTRY;
+}
+
 async function fetchNpmDistVersion(
   packageName: string,
   distTag: string,
 ): Promise<string | null> {
   try {
+    const registry = resolveNpmRegistry();
     const res = await fetch(
-      `https://registry.npmjs.org/${encodeURIComponent(packageName)}/${distTag}`,
+      `${registry}/${encodeURIComponent(packageName)}/${distTag}`,
       { signal: AbortSignal.timeout(5000) },
     );
     if (!res.ok) return null;

@@ -30,7 +30,7 @@ export async function runScan(options: MigrateOptions): Promise<void> {
   }
 
   log.line();
-  console.log(
+  log.dim(
     formatScanOutput(
       ctx.packageManager,
       ctx.packages.map((p) => p.dir),

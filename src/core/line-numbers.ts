@@ -73,7 +73,7 @@ export function resolveActionLines(
       return { minusLine: line ?? undefined, plusLine: line ?? undefined };
     }
     case "patchFile": {
-      const line = resolvePatchLine(content, action.description);
+      const line = resolvePatchLine(content, action.searchHint);
       return { minusLine: line ?? undefined, plusLine: line ?? undefined };
     }
     default:
@@ -83,18 +83,19 @@ export function resolveActionLines(
 
 function resolvePatchLine(
   content: string,
-  description: string,
+  searchHint: string | undefined,
 ): number | null {
-  if (description.includes("useTsgo")) {
+  if (!searchHint) return null;
+  if (searchHint === "useTsgo") {
     return findLineContaining(content, "useTsgo");
   }
-  if (description.includes("typescript.tsdk")) {
+  if (searchHint === "typescript.tsdk") {
     return findLineContaining(content, "typescript.tsdk");
   }
-  if (description.includes("tsgo")) {
+  if (searchHint === "tsgo") {
     return findLineContaining(content, "tsgo");
   }
-  return null;
+  return findLineContaining(content, searchHint);
 }
 
 export function formatAddedDependencyLine(

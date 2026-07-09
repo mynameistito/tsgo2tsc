@@ -1,4 +1,4 @@
-import { cp, mkdtemp, rm, readFile } from "node:fs/promises";
+import { cp, mkdtemp, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, test } from "bun:test";
@@ -18,6 +18,8 @@ import {
   findLineContaining,
   resolveActionLines,
 } from "../src/core/line-numbers.js";
+import { resolveTargetDir } from "../src/utils/path.js";
+import type { MigrateOptions } from "../src/types.js";
 
 const FIXTURES_DIR = join(import.meta.dir, "fixtures");
 
@@ -61,10 +63,6 @@ async function migrateFixture(
 async function readJson(path: string): Promise<unknown> {
   return JSON.parse(await readFile(path, "utf8"));
 }
-
-import { resolveTargetDir } from "../src/utils/path.js";
-
-import type { MigrateOptions } from "../src/types.js";
 
 describe("line numbers", () => {
   const pkg = `{

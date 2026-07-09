@@ -9,7 +9,6 @@ import { runCommand } from "../utils/shell.js";
 import type {
   MigrationMode,
   PackageManager,
-  PackageJson,
   VerificationResult,
   WorkspacePackage,
 } from "../types.js";
@@ -28,17 +27,15 @@ export async function runVerification(
     return { commandsRun, results };
   }
 
-  if (options.install || options.test) {
-    const [cmd, args] = installCommand(pm);
-    const installResult = await runCommand(cmd, args, cwd);
-    const installStr = `${cmd} ${args.join(" ")}`;
-    commandsRun.push(installStr);
-    results.push({
-      command: installStr,
-      success: installResult.success,
-      output: installResult.output,
-    });
-  }
+  const [cmd, args] = installCommand(pm);
+  const installResult = await runCommand(cmd, args, cwd);
+  const installStr = `${cmd} ${args.join(" ")}`;
+  commandsRun.push(installStr);
+  results.push({
+    command: installStr,
+    success: installResult.success,
+    output: installResult.output,
+  });
 
   if (!options.test) {
     return { commandsRun, results };
