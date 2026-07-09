@@ -45,7 +45,7 @@
   },
   "dependencies": {
     "@clack/prompts": "^1.0.0",
-    "commander": "^15.0.0",
+    "commander": "^14.0.0",
     "execa": "^9.0.0",
     "fast-glob": "^3.3.0",
     "jsonc-parser": "^3.3.0",

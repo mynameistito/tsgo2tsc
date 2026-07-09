@@ -37,16 +37,22 @@ export function addTscFlags(
   command: string,
   opts: { checkers?: number; builders?: number },
 ): string {
-  let result = command;
-  if (
+  const wantsBuilders =
     opts.builders !== undefined &&
-    /\btsc\s+(-b|--build)\b/.test(result) &&
-    !/--builders/.test(result)
-  ) {
-    result = result.replace(/\btsc\b/, `tsc --builders ${opts.builders}`);
-  }
-  if (opts.checkers !== undefined && /\btsc\b/.test(result) && !/--checkers/.test(result)) {
-    result = result.replace(/\btsc\b/, `tsc --checkers ${opts.checkers}`);
-  }
-  return result;
+    /\btsc\s+(-b|--build)\b/.test(command) &&
+    !/--builders/.test(command);
+  const wantsCheckers =
+    opts.checkers !== undefined &&
+    /\btsc\b/.test(command) &&
+    !/--checkers/.test(command);
+
+  if (!wantsBuilders && !wantsCheckers) return command;
+
+  // Insert both flags in one replacement so checkers never breaks the
+  // `tsc -b` / `tsc --build` match used to decide builders.
+  const flags: string[] = [];
+  if (wantsBuilders) flags.push(`--builders ${opts.builders}`);
+  if (wantsCheckers) flags.push(`--checkers ${opts.checkers}`);
+
+  return command.replace(/\btsc\b/, `tsc ${flags.join(" ")}`);
 }

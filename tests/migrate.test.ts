@@ -11,7 +11,7 @@ import {
   rollbackFromSnapshot,
   serializeActions,
 } from "../src/core/snapshot.js";
-import { replaceTsgoInCommand } from "../src/patchers/text.js";
+import { addTscFlags, replaceTsgoInCommand } from "../src/patchers/text.js";
 import { detectPackageManager } from "../src/core/package-manager.js";
 import { highlightChange } from "../src/core/dry-run.js";
 import {
@@ -151,6 +151,23 @@ describe("replaceTsgoInCommand", () => {
     expect(replaceTsgoInCommand("tsgo --build")).toBe("tsc --build");
     expect(replaceTsgoInCommand("./node_modules/.bin/tsgo --noEmit")).toBe(
       "./node_modules/.bin/tsc --noEmit",
+    );
+  });
+});
+
+describe("addTscFlags", () => {
+  test("adds checkers and builders together for build commands", () => {
+    expect(addTscFlags("tsc -b", { checkers: 4, builders: 2 })).toBe(
+      "tsc --builders 2 --checkers 4 -b",
+    );
+    expect(addTscFlags("tsc --build", { checkers: 4, builders: 2 })).toBe(
+      "tsc --builders 2 --checkers 4 --build",
+    );
+  });
+
+  test("adds checkers alone for non-build commands", () => {
+    expect(addTscFlags("tsc --noEmit", { checkers: 4, builders: 2 })).toBe(
+      "tsc --checkers 4 --noEmit",
     );
   });
 });

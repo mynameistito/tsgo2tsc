@@ -24,6 +24,12 @@ function matchingMajor(version: string | null, major: number): string | undefine
 
 const DEFAULT_NPM_REGISTRY = "https://registry.npmjs.org";
 
+/**
+ * Best-effort public registry URL for version notes only.
+ *
+ * Does not read `.npmrc`, scope-specific registries, or auth. Failures fall
+ * back to hardcoded ranges; the package manager still resolves installs.
+ */
 function resolveNpmRegistry(): string {
   const fromEnv =
     process.env.npm_config_registry ?? process.env.NPM_CONFIG_REGISTRY;
