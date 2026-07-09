@@ -1,0 +1,37 @@
+import { sortPackageJsonKeys } from "../utils/sort-package-json.js";
+import type { PackageJson } from "../types.js";
+
+export function patchPackageJsonContent(
+  content: string,
+  mutator: (pkg: PackageJson) => void,
+): string {
+  const pkg = JSON.parse(content) as PackageJson;
+  mutator(pkg);
+  const sorted = sortPackageJsonKeys(pkg as Record<string, unknown>);
+  return `${JSON.stringify(sorted, null, 2)}\n`;
+}
+
+export function removeDependency(
+  pkg: PackageJson,
+  section: keyof PackageJson,
+  name: string,
+): boolean {
+  const deps = pkg[section] as Record<string, string> | undefined;
+  if (!deps || !(name in deps)) return false;
+  delete deps[name];
+  if (Object.keys(deps).length === 0) {
+    delete pkg[section];
+  }
+  return true;
+}
+
+export function addDevDependency(
+  pkg: PackageJson,
+  name: string,
+  version: string,
+): void {
+  if (!pkg.devDependencies) {
+    pkg.devDependencies = {};
+  }
+  pkg.devDependencies[name] = version;
+}

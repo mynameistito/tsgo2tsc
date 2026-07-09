@@ -1,0 +1,61 @@
+{
+  "name": "tsgo2tsc",
+  "version": "0.1.0",
+  "description": "Migrate projects from @typescript/native-preview and tsgo to the TypeScript 7 tsc flow.",
+  "type": "module",
+  "bin": {
+    "tsgo2tsc": "./dist/cli.mjs"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
+  "author": "mynameistito",
+  "license": "MIT",
+  "homepage": "https://github.com/mynameistito/tsgo2tsc#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mynameistito/tsgo2tsc.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mynameistito/tsgo2tsc/issues"
+  },
+  "keywords": [
+    "typescript",
+    "tsgo",
+    "native-preview",
+    "migration",
+    "tsc",
+    "cli"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "build:watch": "tsdown --watch",
+    "dev": "bun src/cli.ts",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@clack/prompts": "^1.0.0",
+    "commander": "^14.0.0",
+    "execa": "^9.0.0",
+    "fast-glob": "^3.3.0",
+    "jsonc-parser": "^3.3.0",
+    "magic-string": "^0.30.0",
+    "picocolors": "^1.1.0",
+    "yaml": "^2.5.0"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "tsdown": "^0.14.0",
+    "typescript": "^7.0.0"
+  }
+}

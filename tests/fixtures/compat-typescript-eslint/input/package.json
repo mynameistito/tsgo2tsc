@@ -1,0 +1,9 @@
+{
+  "devDependencies": {
+    "@typescript/native-preview": "^7.0.0-dev.20260627.2",
+    "@typescript-eslint/parser": "^8.0.0"
+  },
+  "scripts": {
+    "typecheck": "tsgo --noEmit"
+  }
+}

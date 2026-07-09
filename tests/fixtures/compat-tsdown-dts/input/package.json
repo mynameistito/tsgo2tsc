@@ -1,0 +1,9 @@
+{
+  "devDependencies": {
+    "@typescript/native-preview": "^7.0.0-dev.20260627.2",
+    "tsdown": "^0.14.0"
+  },
+  "scripts": {
+    "build": "tsdown"
+  }
+}

@@ -1,0 +1,4 @@
+{
+  "js/ts.experimental.useTsgo": true,
+  "typescript.tsdk": "node_modules/@typescript/native-preview/lib"
+}

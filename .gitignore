@@ -1,0 +1,5 @@
+node_modules/
+dist/
+.tsgo2tsc/
+coverage/
+*.log
