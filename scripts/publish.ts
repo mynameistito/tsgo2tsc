@@ -218,11 +218,7 @@ export const runNpmRelease = async (
     return;
   }
 
-  const stagePublish = await runner("npm", [
-    "stage",
-    "publish",
-    ".",
-  ]);
+  const stagePublish = await runner("npm", ["stage", "publish", "."]);
   const publishOutput = `${stagePublish.stdout}${stagePublish.stderr}`;
 
   process.stdout.write(publishOutput);
@@ -244,7 +240,7 @@ export const runNpmRelease = async (
 
 /** Extracts release notes for `version` from a Changesets changelog. */
 export const extractReleaseNotes = (changelog: string, version: string) => {
-  const escapedVersion = version.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+  const escapedVersion = version.replaceAll(/[.*+?^${}()|[\]\\]/gu, "\\$&");
   const heading = new RegExp(`^## ${escapedVersion}[ \\t]*$`, "mu");
   const match = heading.exec(changelog);
   const newlineStart = match ? match.index + match[0].length : -1;
