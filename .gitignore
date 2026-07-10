@@ -3,3 +3,6 @@ dist/
 .tsgo2tsc/
 coverage/
 *.log
+package-lock.json
+pnpm-lock.yaml
+pnpm-workspace.yaml
