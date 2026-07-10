@@ -39,7 +39,10 @@
   "scripts": {
     "build": "tsdown",
     "build:watch": "tsdown --watch",
+    "changeset": "changeset",
+    "changeset-add": "bun run ./scripts/add-changeset.ts",
     "dev": "bun src/cli.ts",
+    "publish": "bun run ./scripts/publish.ts",
     "test": "bun test",
     "typecheck": "tsc --noEmit"
   },
@@ -55,7 +58,9 @@
   },
   "devDependencies": {
     "@types/bun": "^1.3.14",
+    "@changesets/cli": "^2.31.0",
     "tsdown": "^0.22.0",
     "typescript": "^7.0.0"
-  }
+  },
+  "packageManager": "bun@1.3.14"
 }
