@@ -42,7 +42,7 @@
     "changeset": "changeset",
     "changeset-add": "bun run ./scripts/add-changeset.ts",
     "dev": "bun src/cli.ts",
-    "publish": "bun run ./scripts/publish.ts",
+    "release": "bun run ./scripts/publish.ts",
     "test": "bun test",
     "typecheck": "tsc --noEmit"
   },
