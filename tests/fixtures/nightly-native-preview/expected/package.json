@@ -1,0 +1,8 @@
+{
+  "devDependencies": {
+    "typescript": "next"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  }
+}
