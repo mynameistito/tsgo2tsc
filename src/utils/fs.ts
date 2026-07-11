@@ -3,7 +3,7 @@ import { dirname, join } from "node:path";
 
 export async function readText(path: string): Promise<string | null> {
   try {
-    return await readFile(path, "utf8");
+    return await readFile(path, "utf-8");
   } catch (error) {
     if (isNodeError(error) && error.code === "ENOENT") {
       return null;
@@ -17,20 +17,20 @@ function isNodeError(error: unknown): error is NodeJS.ErrnoException {
 }
 export async function writeText(path: string, content: string): Promise<void> {
   await mkdir(dirname(path), { recursive: true });
-  await writeFile(path, content, "utf8");
+  await writeFile(path, content, "utf-8");
 }
 
 export async function copyDir(src: string, dest: string): Promise<void> {
-  await cp(src, dest, { recursive: true, force: true });
+  await cp(src, dest, { force: true, recursive: true });
 }
 
 export async function removeDir(path: string): Promise<void> {
-  await rm(path, { recursive: true, force: true });
+  await rm(path, { force: true, recursive: true });
 }
 
 export function relativePath(root: string, file: string): string {
-  const normalized = file.replace(/\\/g, "/");
-  const rootNorm = root.replace(/\\/g, "/").replace(/\/$/, "");
+  const normalized = file.replaceAll("\\", "/");
+  const rootNorm = root.replaceAll("\\", "/").replace(/\/$/, "");
   if (normalized === rootNorm) {
     return ".";
   }

@@ -1,4 +1,5 @@
 import { basename } from "node:path";
+
 import { getLatestSnapshot, rollbackFromSnapshot } from "../core/snapshot.js";
 import { log } from "../utils/logger.js";
 
@@ -14,6 +15,8 @@ export async function runRollback(cwd: string): Promise<void> {
   const restored = await rollbackFromSnapshot(cwd, snapshotDir);
   const snapshotName = basename(snapshotDir);
 
-  log.success(`Restored ${restored.length} file(s) from .tsgo2tsc/snapshots/${snapshotName}`);
+  log.success(
+    `Restored ${restored.length} file(s) from .tsgo2tsc/snapshots/${snapshotName}`
+  );
   log.info("Run your package manager install again to refresh lockfiles.");
 }

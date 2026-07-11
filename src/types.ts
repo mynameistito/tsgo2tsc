@@ -63,7 +63,7 @@ export interface Recipe {
   plan?(
     ctx: ProjectContext,
     pkg: WorkspacePackage,
-    mode: MigrationMode,
+    mode: MigrationMode
   ): MigrationAction[];
   risks?: string[];
 }
@@ -104,16 +104,15 @@ export type MigrationAction =
       packageDir?: string;
     };
 
-export type SerializableMigrationAction = Exclude<
-  MigrationAction,
-  { type: "patchFile" }
-> | {
-  type: "patchFile";
-  path: string;
-  description: string;
-  /** Prevent assigning live plan actions that still carry apply(). */
-  apply?: never;
-};
+export type SerializableMigrationAction =
+  | Exclude<MigrationAction, { type: "patchFile" }>
+  | {
+      type: "patchFile";
+      path: string;
+      description: string;
+      /** Prevent assigning live plan actions that still carry apply(). */
+      apply?: never;
+    };
 
 export interface MigrationPlan {
   mode: MigrationMode;

@@ -6,11 +6,11 @@ const NATIVE_PREVIEW = "@typescript/native-preview";
 export function scanPackageJson(pkg: WorkspacePackage): {
   hasNativePreview: boolean;
   hasTsgoScript: boolean;
-  scripts: Array<{ name: string; value: string }>;
+  scripts: { name: string; value: string }[];
 } {
   const deps = getAllDependencies(pkg.packageJson);
   const hasNativePreview = NATIVE_PREVIEW in deps;
-  const scripts: Array<{ name: string; value: string }> = [];
+  const scripts: { name: string; value: string }[] = [];
   let hasTsgoScript = false;
 
   for (const [name, value] of Object.entries(pkg.packageJson.scripts ?? {})) {
@@ -24,10 +24,10 @@ export function scanPackageJson(pkg: WorkspacePackage): {
 }
 
 export function hasNativePreviewInAny(
-  packages: WorkspacePackage[],
+  packages: WorkspacePackage[]
 ): WorkspacePackage[] {
   return packages.filter((pkg) =>
-    hasDependency(pkg.packageJson, NATIVE_PREVIEW),
+    hasDependency(pkg.packageJson, NATIVE_PREVIEW)
   );
 }
 
@@ -53,8 +53,11 @@ export const COMPAT_DEPENDENCIES = [
 ] as const;
 
 export function hasTsgoInvocation(command: string): boolean {
-  return /(^|[;&|({}\s"'/])(?:bunx|npx|pnpm|yarn)\s+tsgo(?=$|[\s;&|)"'])/u.test(command) ||
-    /(^|[;&|({}\s"'/])tsgo(?=$|[\s;&|)"'])/u.test(command);
+  return (
+    /(^|[;&|({}\s"'/])(?:bunx|npx|pnpm|yarn)\s+tsgo(?=$|[\s;&|)"'])/u.test(
+      command
+    ) || /(^|[;&|({}\s"'/])tsgo(?=$|[\s;&|)"'])/u.test(command)
+  );
 }
 
 export function detectCompatDependencies(pkg: PackageJson): string[] {

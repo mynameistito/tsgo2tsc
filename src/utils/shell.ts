@@ -6,21 +6,21 @@ export async function runCommand(
   command: string,
   args: string[],
   cwd: string,
-  timeoutMs = DEFAULT_TIMEOUT_MS,
+  timeoutMs = DEFAULT_TIMEOUT_MS
 ): Promise<{ success: boolean; output: string }> {
   try {
     const result = await execa(command, args, {
+      all: true,
       cwd,
       reject: false,
-      all: true,
       timeout: timeoutMs,
     });
     return {
-      success: result.exitCode === 0,
       output: result.all ?? "",
+      success: result.exitCode === 0,
     };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return { success: false, output: message };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return { output: message, success: false };
   }
 }

@@ -1,8 +1,8 @@
 {
-  "devDependencies": {
-    "typescript": "^5.0.0"
-  },
   "scripts": {
     "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
   }
 }

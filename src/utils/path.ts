@@ -2,7 +2,10 @@ import { existsSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 
 export function resolveTargetDir(input?: string): string {
-  const target = resolve(process.cwd(), (input?.trim() || ".").replace(/\\/g, "/"));
+  const target = resolve(
+    process.cwd(),
+    (input?.trim() || ".").replaceAll("\\", "/")
+  );
 
   if (!existsSync(target)) {
     throw new Error(`Directory not found: ${target}`);

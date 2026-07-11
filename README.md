@@ -29,11 +29,11 @@ Watch the production bundle with `bun run build:watch`.
 
 ## Commands
 
-| Command | Description |
-|---------|-------------|
-| `scan` | Scan the project and report migration readiness |
-| `migrate` | Plan or apply migration from `tsgo` to `tsc` |
-| `doctor` | Check migration health and verification |
+| Command    | Description                                      |
+| ---------- | ------------------------------------------------ |
+| `scan`     | Scan the project and report migration readiness  |
+| `migrate`  | Plan or apply migration from `tsgo` to `tsc`     |
+| `doctor`   | Check migration health and verification          |
 | `rollback` | Restore files from the latest migration snapshot |
 
 ## Migration modes

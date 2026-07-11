@@ -1,3 +1,14 @@
+import { hasDependency } from "../core/workspace.js";
+import { planGithubActions } from "../recipes/github-actions.js";
+import { allRecipes, compatRecipes } from "../recipes/index.js";
+import { nativePreviewRecipe } from "../recipes/native-preview.js";
+import { planVscodeActions } from "../recipes/vscode.js";
+import {
+  scanTsconfigWarnings,
+  scanTsdownDeclaration,
+} from "../scanners/configs.js";
+import { scanPackageJson } from "../scanners/package-json.js";
+import { scanSourceImports } from "../scanners/source-imports.js";
 import type {
   MigrationAction,
   MigrationMode,
@@ -5,18 +16,10 @@ import type {
   ProjectContext,
   WorkspacePackage,
 } from "../types.js";
-import { allRecipes, compatRecipes } from "../recipes/index.js";
-import { nativePreviewRecipe } from "../recipes/native-preview.js";
-import { planVscodeActions } from "../recipes/vscode.js";
-import { planGithubActions } from "../recipes/github-actions.js";
-import { scanSourceImports } from "../scanners/source-imports.js";
-import { scanTsconfigWarnings, scanTsdownDeclaration } from "../scanners/configs.js";
-import { scanPackageJson } from "../scanners/package-json.js";
-import { hasDependency } from "../core/workspace.js";
 import { relativePath } from "../utils/fs.js";
 
 export async function createMigrationPlan(
-  ctx: ProjectContext,
+  ctx: ProjectContext
 ): Promise<MigrationPlan> {
   const reasons: string[] = [];
   const detectedTools: string[] = [];
@@ -59,7 +62,9 @@ export async function createMigrationPlan(
         packageCompat.set(pkg.dir, true);
         if (!detectedTools.includes("tsdown-dts")) {
           detectedTools.push("tsdown-dts");
-          reasons.push(`[${pkg.dir}] tsdown with declaration generation enabled`);
+          reasons.push(
+            `[${pkg.dir}] tsdown with declaration generation enabled`
+          );
         }
       }
     }
@@ -67,9 +72,9 @@ export async function createMigrationPlan(
   const tsconfigWarnings = await scanTsconfigWarnings(ctx);
   for (const w of tsconfigWarnings) {
     warnings.push({
-      type: "warn",
       message: `${relativePath(ctx.rootDir, w.file)}: ${w.message}`,
       severity: w.severity,
+      type: "warn",
     });
   }
 
@@ -78,9 +83,9 @@ export async function createMigrationPlan(
     const pkgNeedsCompat =
       ctx.compat === "force"
         ? true
-        : ctx.compat === "off"
+        : (ctx.compat === "off"
           ? false
-          : (packageCompat.get(pkg.dir) ?? false);
+          : (packageCompat.get(pkg.dir) ?? false));
     packageModes.set(pkg.dir, resolveMode(ctx, pkgNeedsCompat));
   }
 
@@ -96,15 +101,17 @@ export async function createMigrationPlan(
     }
   }
 
-  actions.push(...(await planVscodeActions(ctx, mode)));
-  actions.push(...(await planGithubActions(ctx)));
+  actions.push(
+    ...(await planVscodeActions(ctx, mode)),
+    ...(await planGithubActions(ctx))
+  );
 
   return {
+    actions,
+    detectedTools: [...new Set(detectedTools)],
     mode,
     packageModes,
-    actions,
     reasons: [...new Set(reasons)],
-    detectedTools: [...new Set(detectedTools)],
     warnings,
   };
 }
@@ -128,20 +135,18 @@ function resolveOverallMode(modes: Map<string, MigrationMode>): MigrationMode {
 
 function findOwningPackage(
   packages: WorkspacePackage[],
-  relPath: string,
+  relPath: string
 ): string | null {
-  const sorted = [...packages].sort(
-    (a, b) => b.dir.length - a.dir.length,
-  );
+  const sorted = [...packages].toSorted((a, b) => b.dir.length - a.dir.length);
 
   for (const pkg of sorted) {
     if (pkg.dir === ".") {
       const owned = !packages.some(
-        (other) =>
-          other.dir !== "." &&
-          relPath.startsWith(`${other.dir}/`),
+        (other) => other.dir !== "." && relPath.startsWith(`${other.dir}/`)
       );
-      if (owned) return ".";
+      if (owned) {
+        return ".";
+      }
       continue;
     }
     if (relPath === pkg.dir || relPath.startsWith(`${pkg.dir}/`)) {
@@ -153,7 +158,7 @@ function findOwningPackage(
 }
 
 export function groupActionsByFile(
-  actions: MigrationAction[],
+  actions: MigrationAction[]
 ): Map<string, MigrationAction[]> {
   const map = new Map<string, MigrationAction[]>();
 
@@ -162,16 +167,21 @@ export function groupActionsByFile(
     switch (action.type) {
       case "removeDependency":
       case "addDependency":
-      case "replaceScriptToken":
+      case "replaceScriptToken": {
         path = action.packageJsonPath;
         break;
-      case "patchFile":
+      }
+      case "patchFile": {
         path = action.path;
         break;
-      case "warn":
+      }
+      case "warn": {
         continue;
+      }
     }
-    if (!path) continue;
+    if (!path) {
+      continue;
+    }
     const list = map.get(path) ?? [];
     list.push(action);
     map.set(path, list);

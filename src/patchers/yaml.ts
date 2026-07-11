@@ -2,7 +2,7 @@ import YAML from "yaml";
 
 export function patchYaml(
   content: string,
-  mutator: (doc: Record<string, unknown>) => void,
+  mutator: (doc: Record<string, unknown>) => void
 ): string {
   // This object-level API does not preserve YAML comments. Use a document-level
   // patcher for comment-sensitive files.

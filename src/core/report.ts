@@ -1,5 +1,5 @@
-import { writeText } from "../utils/fs.js";
 import { join } from "node:path";
+
 import type {
   MigrationAction,
   MigrationMode,
@@ -9,11 +9,12 @@ import type {
   SerializableMigrationAction,
   VerificationResult,
 } from "../types.js";
+import { writeText } from "../utils/fs.js";
 
 export async function writeReport(
   cwd: string,
   plan: MigrationPlan,
-  record: MigrationRecord,
+  record: MigrationRecord
 ): Promise<void> {
   const reportPath = join(cwd, ".tsgo2tsc", "report.md");
   const content = formatReport(plan, record);
@@ -23,7 +24,7 @@ export async function writeReport(
 export async function writeSnapshotReport(
   snapshotDir: string,
   plan: MigrationPlan,
-  record: MigrationRecord,
+  record: MigrationRecord
 ): Promise<void> {
   const content = formatReport(plan, record);
   await writeText(join(snapshotDir, "report.md"), content);
@@ -67,7 +68,10 @@ function formatReport(plan: MigrationPlan, record: MigrationRecord): string {
     "",
     "## Warnings",
     "",
-    ...formatWarnings([...plan.warnings, ...record.actions.filter((a) => a.type === "warn")]),
+    ...formatWarnings([
+      ...plan.warnings,
+      ...record.actions.filter((a) => a.type === "warn"),
+    ]),
     "",
     "## Verification results",
     "",
@@ -86,15 +90,19 @@ function formatReport(plan: MigrationPlan, record: MigrationRecord): string {
 
 function rollbackCommand(pm: PackageManager): string {
   switch (pm) {
-    case "bun":
+    case "bun": {
       return "bunx tsgo2tsc rollback";
-    case "pnpm":
+    }
+    case "pnpm": {
       return "pnpm dlx tsgo2tsc rollback";
-    case "yarn":
+    }
+    case "yarn": {
       return "yarn dlx tsgo2tsc rollback";
+    }
     case "npm":
-    default:
+    default: {
       return "npx tsgo2tsc rollback";
+    }
   }
 }
 
@@ -121,13 +129,17 @@ function formatSummary(mode: MigrationMode, tools: string[]): string {
   return "Migration completed to stable `typescript@^7.0.0` with `tsc`.";
 }
 
-function formatDependencyChanges(actions: SerializableMigrationAction[]): string[] {
+function formatDependencyChanges(
+  actions: SerializableMigrationAction[]
+): string[] {
   const lines: string[] = [];
   for (const action of actions) {
     if (action.type === "removeDependency") {
       lines.push(`- remove ${action.section} \`${action.name}\``);
     } else if (action.type === "addDependency") {
-      lines.push(`- add ${action.section} \`${action.name}\` = \`${action.version}\``);
+      lines.push(
+        `- add ${action.section} \`${action.name}\` = \`${action.version}\``
+      );
     }
   }
   return lines.length > 0 ? lines : ["- none"];
@@ -138,7 +150,7 @@ function formatScriptChanges(actions: SerializableMigrationAction[]): string[] {
   for (const action of actions) {
     if (action.type === "replaceScriptToken") {
       lines.push(
-        `- \`${action.scriptName}\`: \`${action.from}\` -> \`${action.to}\``,
+        `- \`${action.scriptName}\`: \`${action.from}\` -> \`${action.to}\``
       );
     } else if (action.type === "patchFile") {
       lines.push(`- ${action.path}: ${action.description}`);
@@ -147,28 +159,36 @@ function formatScriptChanges(actions: SerializableMigrationAction[]): string[] {
   return lines.length > 0 ? lines : ["- none"];
 }
 
-function formatWarnings(actions: Array<MigrationAction | SerializableMigrationAction>): string[] {
+function formatWarnings(
+  actions: (MigrationAction | SerializableMigrationAction)[]
+): string[] {
   const warns = actions.filter((a) => a.type === "warn");
-  if (warns.length === 0) return ["- none"];
+  if (warns.length === 0) {
+    return ["- none"];
+  }
   return warns.map((w) => {
-    if (w.type !== "warn") return "";
+    if (w.type !== "warn") {
+      return "";
+    }
     return `- [${w.severity}] ${w.message}`;
   });
 }
 
 function formatVerification(results: VerificationResult[]): string[] {
-  if (results.length === 0) return ["- not run"];
+  if (results.length === 0) {
+    return ["- not run"];
+  }
   return results.map((r) =>
     r.success
       ? `- ✔ \`${r.command}\``
-      : `- ✖ \`${r.command}\`\n  \`\`\`\n${(r.output ?? "").trim()}\n  \`\`\``,
+      : `- ✖ \`${r.command}\`\n  \`\`\`\n${(r.output ?? "").trim()}\n  \`\`\``
   );
 }
 
 export function formatScanOutput(
   pm: PackageManager,
   packages: string[],
-  plan: MigrationPlan,
+  plan: MigrationPlan
 ): string {
   const lines: string[] = [
     `Root package manager: ${pm}`,
@@ -185,7 +205,11 @@ export function formatScanOutput(
   }
 
   if (plan.detectedTools.length > 0) {
-    lines.push("", "Detected tools:", ...plan.detectedTools.map((t) => `  - ${t}`));
+    lines.push(
+      "",
+      "Detected tools:",
+      ...plan.detectedTools.map((t) => `  - ${t}`)
+    );
   }
 
   return lines.join("\n");

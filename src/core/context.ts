@@ -1,35 +1,35 @@
-import { scanProjectFiles } from "../utils/glob.js";
-import { discoverWorkspaces } from "./workspace.js";
-import { resolvePackageManager } from "./package-manager.js";
 import type { MigrateOptions, ProjectContext } from "../types.js";
+import { scanProjectFiles } from "../utils/glob.js";
+import { resolvePackageManager } from "./package-manager.js";
+import { discoverWorkspaces } from "./workspace.js";
 
 export async function buildProjectContext(
-  options: MigrateOptions,
+  options: MigrateOptions
 ): Promise<ProjectContext> {
   const packageManager = resolvePackageManager(options.cwd, options.pm);
   const files = await scanProjectFiles(
     options.cwd,
     options.include,
-    options.exclude,
+    options.exclude
   );
   // Include/exclude only scopes scanned files. Package discovery stays
   // independent so `--include "src/**/*.ts"` does not drop every package.
   const packages = await discoverWorkspaces(options.cwd);
 
   return {
-    rootDir: options.cwd,
+    builders: options.builders,
+    checkers: options.checkers,
+    compat: options.compat,
+    excludeGlobs: options.exclude,
+    files,
+    fixTsconfig: options.fixTsconfig,
+    includeGlobs: options.include,
+    nightly: options.nightly && !options.stable,
     packageManager,
     packages,
-    files,
-    nightly: options.nightly && !options.stable,
-    compat: options.compat,
+    rootDir: options.cwd,
     updateCi: options.updateCi,
-    updateVscode: options.updateVscode,
-    fixTsconfig: options.fixTsconfig,
     updateDocs: options.updateDocs,
-    checkers: options.checkers,
-    builders: options.builders,
-    includeGlobs: options.include,
-    excludeGlobs: options.exclude,
+    updateVscode: options.updateVscode,
   };
 }

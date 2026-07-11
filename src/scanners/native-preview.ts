@@ -1,8 +1,8 @@
-import { readText } from "../utils/fs.js";
 import { findDependencySection } from "../core/workspace.js";
-import type { PackageJson, ProjectContext } from "../types.js";
 import { scanPackageJson } from "../scanners/package-json.js";
 import { scanVscodeSettings } from "../scanners/vscode.js";
+import type { PackageJson, ProjectContext } from "../types.js";
+import { readText } from "../utils/fs.js";
 
 const NATIVE_PREVIEW = "@typescript/native-preview";
 
@@ -10,7 +10,7 @@ export interface NativePreviewFinding {
   dir: string;
   version?: string;
   section?: string;
-  sources: Array<"dependency" | "script" | "lockfile" | "vscode">;
+  sources: ("dependency" | "script" | "lockfile" | "vscode")[];
 }
 
 export function getNativePreviewVersion(pkg: PackageJson): {
@@ -18,13 +18,15 @@ export function getNativePreviewVersion(pkg: PackageJson): {
   section?: string;
 } {
   const section = findDependencySection(pkg, NATIVE_PREVIEW);
-  if (!section) return {};
+  if (!section) {
+    return {};
+  }
   const deps = pkg[section] as Record<string, string> | undefined;
-  return { version: deps?.[NATIVE_PREVIEW], section };
+  return { section, version: deps?.[NATIVE_PREVIEW] };
 }
 
 export async function scanNativePreviewUsage(
-  ctx: ProjectContext,
+  ctx: ProjectContext
 ): Promise<NativePreviewFinding[]> {
   const findings = new Map<string, NativePreviewFinding>();
 
@@ -75,30 +77,34 @@ export async function scanNativePreviewUsage(
     findings.set(".", entry);
   }
 
-  return [...findings.values()].sort((a, b) => a.dir.localeCompare(b.dir));
+  return [...findings.values()].toSorted((a, b) => a.dir.localeCompare(b.dir));
 }
 
 async function scanLockfilesForNativePreview(
-  ctx: ProjectContext,
-): Promise<Array<{ dir: string }>> {
+  ctx: ProjectContext
+): Promise<{ dir: string }[]> {
   const lockFiles = ctx.files.filter((f) =>
     /(bun\.lockb?|package-lock\.json|npm-shrinkwrap\.json|pnpm-lock\.yaml|yarn\.lock)$/.test(
-      f.replace(/\\/g, "/"),
-    ),
+      f.replaceAll("\\", "/")
+    )
   );
 
-  const hits: Array<{ dir: string }> = [];
+  const hits: { dir: string }[] = [];
 
   for (const file of lockFiles) {
     const content = await readText(file);
-    if (!content?.includes("@typescript/native-preview")) continue;
+    if (!content?.includes("@typescript/native-preview")) {
+      continue;
+    }
     hits.push({ dir: "." });
   }
 
   return hits;
 }
 
-export function formatNativePreviewFinding(finding: NativePreviewFinding): string {
+export function formatNativePreviewFinding(
+  finding: NativePreviewFinding
+): string {
   const version = finding.version ? `@${finding.version}` : "";
   const sources = finding.sources.join(", ");
   return `${finding.dir}  ${NATIVE_PREVIEW}${version} (${sources})`;

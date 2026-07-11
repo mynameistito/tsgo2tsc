@@ -1,5 +1,6 @@
-import fg from "fast-glob";
 import { join } from "node:path";
+
+import fg from "fast-glob";
 
 const DEFAULT_IGNORE = [
   "**/node_modules/**",
@@ -54,19 +55,18 @@ const SCAN_PATTERNS = [
 export async function scanProjectFiles(
   rootDir: string,
   include?: string[],
-  exclude?: string[],
+  exclude?: string[]
 ): Promise<string[]> {
-  const patterns =
-    include && include.length > 0 ? include : SCAN_PATTERNS;
+  const patterns = include && include.length > 0 ? include : SCAN_PATTERNS;
   const ignore = [...DEFAULT_IGNORE, ...(exclude ?? [])];
 
   const files = await fg(patterns, {
-    cwd: rootDir,
     absolute: true,
-    onlyFiles: true,
+    cwd: rootDir,
     dot: true,
     ignore,
+    onlyFiles: true,
   });
 
-  return [...new Set(files)].sort();
+  return [...new Set(files)].toSorted();
 }

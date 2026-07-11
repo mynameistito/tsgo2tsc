@@ -1,10 +1,5 @@
-import {
-  parse,
-  modify,
-  applyEdits,
-  printParseErrorCode,
-  type ParseError,
-} from "jsonc-parser";
+import { parse, modify, applyEdits, printParseErrorCode } from "jsonc-parser";
+import type { ParseError } from "jsonc-parser";
 
 export function parseJsonc<T>(content: string): T {
   const errors: ParseError[] = [];
@@ -12,7 +7,7 @@ export function parseJsonc<T>(content: string): T {
   if (errors.length > 0) {
     const first = errors[0]!;
     throw new Error(
-      `Invalid JSONC at offset ${first.offset}: ${printParseErrorCode(first.error)}`,
+      `Invalid JSONC at offset ${first.offset}: ${printParseErrorCode(first.error)}`
     );
   }
   if (result === undefined) {
@@ -23,13 +18,15 @@ export function parseJsonc<T>(content: string): T {
 
 export function patchJsonc(
   content: string,
-  edits: Array<{ path: (string | number)[]; value: unknown }>,
+  edits: { path: (string | number)[]; value: unknown }[]
 ): string {
   let result = content;
   for (const edit of edits) {
     result = applyEdits(
       result,
-      modify(result, edit.path, edit.value, { formattingOptions: { tabSize: 2, insertSpaces: true } }),
+      modify(result, edit.path, edit.value, {
+        formattingOptions: { insertSpaces: true, tabSize: 2 },
+      })
     );
   }
   return result;
@@ -37,7 +34,7 @@ export function patchJsonc(
 
 export function patchJsonSettings(
   content: string,
-  mutator: (settings: Record<string, unknown>) => void,
+  mutator: (settings: Record<string, unknown>) => void
 ): string {
   const before = parseJsonc<Record<string, unknown>>(content);
   const after = structuredClone(before) as Record<string, unknown>;
@@ -46,12 +43,14 @@ export function patchJsonSettings(
   let result = content;
   const keys = new Set([...Object.keys(before), ...Object.keys(after)]);
   for (const key of keys) {
-    if (JSON.stringify(before[key]) === JSON.stringify(after[key])) continue;
+    if (JSON.stringify(before[key]) === JSON.stringify(after[key])) {
+      continue;
+    }
     result = applyEdits(
       result,
       modify(result, [key], after[key], {
-        formattingOptions: { tabSize: 2, insertSpaces: true },
-      }),
+        formattingOptions: { insertSpaces: true, tabSize: 2 },
+      })
     );
   }
 

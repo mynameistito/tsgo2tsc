@@ -1,18 +1,19 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+
 import { buildProjectContext } from "../core/context.js";
 import { createMigrationPlan } from "../core/planner.js";
 import { getLatestSnapshotInfo } from "../core/snapshot.js";
 import {
-  formatNativePreviewFinding,
-  scanNativePreviewUsage,
-} from "../scanners/native-preview.js";
-import {
   formatTargetVersions,
   resolveMigrationTargetVersions,
 } from "../core/versions.js";
-import { log } from "../utils/logger.js";
+import {
+  formatNativePreviewFinding,
+  scanNativePreviewUsage,
+} from "../scanners/native-preview.js";
 import type { MigrateOptions, MigrationRecord } from "../types.js";
+import { log } from "../utils/logger.js";
 
 export async function runDoctor(options: MigrateOptions): Promise<void> {
   const ctx = await buildProjectContext(options);
@@ -52,7 +53,7 @@ export async function runDoctor(options: MigrateOptions): Promise<void> {
 
     try {
       const record = JSON.parse(
-        await readFile(join(latest.snapshotDir, "migration.json"), "utf8"),
+        await readFile(join(latest.snapshotDir, "migration.json"), "utf-8")
       ) as MigrationRecord;
       if (record.verification) {
         log.line();

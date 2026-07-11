@@ -2,7 +2,7 @@ export { patchJsonSettings, parseJsonc } from "./jsonc.js";
 
 export function patchJson(
   content: string,
-  mutator: (doc: Record<string, unknown>) => void,
+  mutator: (doc: Record<string, unknown>) => void
 ): string {
   const doc = JSON.parse(content) as unknown;
   if (!isPlainObject(doc)) {

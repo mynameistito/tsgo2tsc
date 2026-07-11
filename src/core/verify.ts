@@ -1,24 +1,25 @@
-import {
-  installCommand,
-  runScriptCommand,
-  tsc6Command,
-  tscCommand,
-} from "./package-manager.js";
 import { join } from "node:path";
-import { runCommand } from "../utils/shell.js";
+
 import type {
   MigrationMode,
   PackageManager,
   VerificationResult,
   WorkspacePackage,
 } from "../types.js";
+import { runCommand } from "../utils/shell.js";
+import {
+  installCommand,
+  runScriptCommand,
+  tsc6Command,
+  tscCommand,
+} from "./package-manager.js";
 
 export async function runVerification(
   cwd: string,
   pm: PackageManager,
   packages: WorkspacePackage[],
   mode: MigrationMode,
-  options: { install: boolean; test: boolean },
+  options: { install: boolean; test: boolean }
 ): Promise<{ commandsRun: string[]; results: VerificationResult[] }> {
   const commandsRun: string[] = [];
   const results: VerificationResult[] = [];
@@ -33,8 +34,8 @@ export async function runVerification(
   commandsRun.push(installStr);
   results.push({
     command: installStr,
-    success: installResult.success,
     output: installResult.output,
+    success: installResult.success,
   });
 
   if (!options.test) {
@@ -47,8 +48,8 @@ export async function runVerification(
   commandsRun.push(tscStr);
   results.push({
     command: tscStr,
-    success: tscVersion.success,
     output: tscVersion.output,
+    success: tscVersion.success,
   });
 
   if (mode.startsWith("compat")) {
@@ -58,8 +59,8 @@ export async function runVerification(
     commandsRun.push(tsc6Str);
     results.push({
       command: tsc6Str,
-      success: tsc6.success,
       output: tsc6.output,
+      success: tsc6.success,
     });
   }
 
@@ -71,18 +72,28 @@ export async function runVerification(
     const noEmit = await runCommand(cmd, args, cwd);
     const str = `${cmd} ${args.join(" ")}`;
     commandsRun.push(str);
-    results.push({ command: str, success: noEmit.success, output: noEmit.output });
+    results.push({
+      command: str,
+      output: noEmit.output,
+      success: noEmit.success,
+    });
   }
 
   for (const pkg of packages) {
     const packageCwd = pkg.dir === "." ? cwd : join(cwd, pkg.dir);
     for (const scriptName of ["typecheck", "build", "lint", "test"] as const) {
-      if (!pkg.packageJson.scripts?.[scriptName]) continue;
+      if (!pkg.packageJson.scripts?.[scriptName]) {
+        continue;
+      }
       const [cmd, args] = runScriptCommand(pm, scriptName);
       const result = await runCommand(cmd, args, packageCwd);
       const str = `${pkg.dir === "." ? "" : `${pkg.dir}: `}${cmd} ${args.join(" ")}`;
       commandsRun.push(str);
-      results.push({ command: str, success: result.success, output: result.output });
+      results.push({
+        command: str,
+        output: result.output,
+        success: result.success,
+      });
     }
   }
 

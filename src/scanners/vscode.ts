@@ -1,7 +1,8 @@
-import { readText } from "../utils/fs.js";
 import { join } from "node:path";
+
 import { parseJsonc } from "../patchers/jsonc.js";
 import type { ProjectContext } from "../types.js";
+import { readText } from "../utils/fs.js";
 
 export interface VscodeScanResult {
   file: string;
@@ -11,11 +12,13 @@ export interface VscodeScanResult {
 }
 
 export async function scanVscodeSettings(
-  ctx: ProjectContext,
+  ctx: ProjectContext
 ): Promise<VscodeScanResult | null> {
   const settingsPath = join(ctx.rootDir, ".vscode", "settings.json");
   const content = await readText(settingsPath);
-  if (!content) return null;
+  if (!content) {
+    return null;
+  }
 
   let settings: Record<string, unknown>;
   try {
@@ -31,8 +34,8 @@ export async function scanVscodeSettings(
 
   return {
     file: settingsPath,
-    hasUseTsgo,
     hasNativePreviewTsdk,
+    hasUseTsgo,
     tsdkValue: typeof tsdk === "string" ? tsdk : undefined,
   };
 }

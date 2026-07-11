@@ -19,7 +19,7 @@ const TOP_KEYS = [
 ];
 
 export function sortPackageJsonKeys(
-  pkg: Record<string, unknown>,
+  pkg: Record<string, unknown>
 ): Record<string, unknown> {
   const sorted: Record<string, unknown> = {};
   const keys = Object.keys(pkg);
@@ -30,7 +30,7 @@ export function sortPackageJsonKeys(
     }
   }
 
-  for (const key of keys.sort()) {
+  for (const key of keys.toSorted()) {
     if (!(key in sorted)) {
       sorted[key] = sortSection(key, pkg[key]);
     }
@@ -50,7 +50,7 @@ function sortSection(key: string, value: unknown): unknown {
   ) {
     const record = value as Record<string, string>;
     const sorted: Record<string, string> = {};
-    for (const k of Object.keys(record).sort()) {
+    for (const k of Object.keys(record).toSorted()) {
       sorted[k] = record[k]!;
     }
     return sorted;

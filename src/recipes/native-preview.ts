@@ -1,3 +1,6 @@
+import { hasDependency, findDependencySection } from "../core/workspace.js";
+import { replaceTsgoInCommand, addTscFlags } from "../patchers/text.js";
+import { scanPackageJson } from "../scanners/package-json.js";
 import type {
   DetectionResult,
   MigrationAction,
@@ -6,21 +9,22 @@ import type {
   Recipe,
   WorkspacePackage,
 } from "../types.js";
-import { hasDependency, findDependencySection } from "../core/workspace.js";
-import { scanPackageJson } from "../scanners/package-json.js";
-import { replaceTsgoInCommand, addTscFlags } from "../patchers/text.js";
 
 const NATIVE_PREVIEW = "@typescript/native-preview";
 
 export const nativePreviewRecipe: Recipe = {
-  name: "native-preview",
   detect(_ctx, pkg) {
     const scan = scanPackageJson(pkg);
     const reasons: string[] = [];
-    if (scan.hasNativePreview) reasons.push(`found ${NATIVE_PREVIEW}`);
-    if (scan.hasTsgoScript) reasons.push("found tsgo in scripts");
+    if (scan.hasNativePreview) {
+      reasons.push(`found ${NATIVE_PREVIEW}`);
+    }
+    if (scan.hasTsgoScript) {
+      reasons.push("found tsgo in scripts");
+    }
     return { detected: reasons.length > 0, reasons };
   },
+  name: "native-preview",
   plan(ctx, pkg, mode) {
     const actions: MigrationAction[] = [];
     const scan = scanPackageJson(pkg);
@@ -33,75 +37,79 @@ export const nativePreviewRecipe: Recipe = {
       const section = findDependencySection(pkg.packageJson, NATIVE_PREVIEW);
       if (section) {
         actions.push({
-          type: "removeDependency",
+          name: NATIVE_PREVIEW,
           packageJsonPath: pkg.packageJsonPath,
           section,
-          name: NATIVE_PREVIEW,
+          type: "removeDependency",
         });
       }
     }
 
     if (mode === "stable") {
       actions.push({
-        type: "addDependency",
+        name: "typescript",
         packageJsonPath: pkg.packageJsonPath,
         section: "devDependencies",
-        name: "typescript",
+        type: "addDependency",
         version: "^7.0.0",
       });
     } else if (mode === "nightly") {
       actions.push({
-        type: "addDependency",
+        name: "typescript",
         packageJsonPath: pkg.packageJsonPath,
         section: "devDependencies",
-        name: "typescript",
+        type: "addDependency",
         version: "next",
       });
     } else if (mode === "compat-stable") {
-      actions.push({
-        type: "addDependency",
-        packageJsonPath: pkg.packageJsonPath,
-        section: "devDependencies",
-        name: "@typescript/native",
-        version: "npm:typescript@^7.0.0",
-      });
-      actions.push({
-        type: "addDependency",
-        packageJsonPath: pkg.packageJsonPath,
-        section: "devDependencies",
-        name: "typescript",
-        version: "npm:@typescript/typescript6@^6.0.0",
-      });
+      actions.push(
+        {
+          name: "@typescript/native",
+          packageJsonPath: pkg.packageJsonPath,
+          section: "devDependencies",
+          type: "addDependency",
+          version: "npm:typescript@^7.0.0",
+        },
+        {
+          name: "typescript",
+          packageJsonPath: pkg.packageJsonPath,
+          section: "devDependencies",
+          type: "addDependency",
+          version: "npm:@typescript/typescript6@^6.0.0",
+        }
+      );
     } else if (mode === "compat-nightly") {
-      actions.push({
-        type: "addDependency",
-        packageJsonPath: pkg.packageJsonPath,
-        section: "devDependencies",
-        name: "@typescript/native",
-        version: "npm:typescript@next",
-      });
-      actions.push({
-        type: "addDependency",
-        packageJsonPath: pkg.packageJsonPath,
-        section: "devDependencies",
-        name: "typescript",
-        version: "npm:@typescript/typescript6@^6.0.0",
-      });
+      actions.push(
+        {
+          name: "@typescript/native",
+          packageJsonPath: pkg.packageJsonPath,
+          section: "devDependencies",
+          type: "addDependency",
+          version: "npm:typescript@next",
+        },
+        {
+          name: "typescript",
+          packageJsonPath: pkg.packageJsonPath,
+          section: "devDependencies",
+          type: "addDependency",
+          version: "npm:@typescript/typescript6@^6.0.0",
+        }
+      );
     }
 
     for (const script of scan.scripts) {
       let to = replaceTsgoInCommand(script.value);
       to = addTscFlags(to, {
-        checkers: ctx.checkers,
         builders: ctx.builders,
+        checkers: ctx.checkers,
       });
       if (to !== script.value) {
         actions.push({
-          type: "replaceScriptToken",
+          from: script.value,
           packageJsonPath: pkg.packageJsonPath,
           scriptName: script.name,
-          from: script.value,
           to,
+          type: "replaceScriptToken",
         });
       }
     }

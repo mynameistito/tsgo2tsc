@@ -7,21 +7,23 @@ export function getLineContent(content: string, line: number): string {
 
 export function findLineContaining(
   content: string,
-  needle: string | RegExp,
+  needle: string | RegExp
 ): number | null {
   const lines = content.split("\n");
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]!;
     const matches =
       typeof needle === "string" ? line.includes(needle) : needle.test(line);
-    if (matches) return i + 1;
+    if (matches) {
+      return i + 1;
+    }
   }
   return null;
 }
 
 export function findDependencyInsertLine(
   content: string,
-  section: string,
+  section: string
 ): number | null {
   const lines = content.split("\n");
   let inSection = false;
@@ -35,7 +37,9 @@ export function findDependencyInsertLine(
       sectionStart = i + 2;
       continue;
     }
-    if (!inSection) continue;
+    if (!inSection) {
+      continue;
+    }
 
     if (/^\s*},?\s*$/.test(line)) {
       return lastDepLine > 0 ? lastDepLine + 1 : sectionStart;
@@ -50,7 +54,7 @@ export function findDependencyInsertLine(
 
 export function resolveActionLines(
   content: string,
-  action: MigrationAction,
+  action: MigrationAction
 ): { minusLine?: number; plusLine?: number } {
   switch (action.type) {
     case "removeDependency": {
@@ -63,7 +67,8 @@ export function resolveActionLines(
         return { minusLine: existing, plusLine: existing };
       }
       return {
-        plusLine: findDependencyInsertLine(content, action.section) ?? undefined,
+        plusLine:
+          findDependencyInsertLine(content, action.section) ?? undefined,
       };
     }
     case "replaceScriptToken": {
@@ -76,16 +81,19 @@ export function resolveActionLines(
       const line = resolvePatchLine(content, action.searchHint);
       return { minusLine: line ?? undefined, plusLine: line ?? undefined };
     }
-    default:
+    default: {
       return {};
+    }
   }
 }
 
 function resolvePatchLine(
   content: string,
-  searchHint: string | undefined,
+  searchHint: string | undefined
 ): number | null {
-  if (!searchHint) return null;
+  if (!searchHint) {
+    return null;
+  }
   if (searchHint === "useTsgo") {
     return findLineContaining(content, "useTsgo");
   }
@@ -100,7 +108,7 @@ function resolvePatchLine(
 
 export function formatAddedDependencyLine(
   name: string,
-  version: string,
+  version: string
 ): string {
   return `    "${name}": "${version}",`;
 }

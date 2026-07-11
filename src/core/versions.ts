@@ -17,8 +17,13 @@ export interface MigrationTargetVersions {
 const FALLBACK_STABLE = "^7.0.0";
 const FALLBACK_TYPESCRIPT6 = "^6.0.0";
 
-function matchingMajor(version: string | null, major: number): string | undefined {
-  if (!version) return undefined;
+function matchingMajor(
+  version: string | null,
+  major: number
+): string | undefined {
+  if (!version) {
+    return undefined;
+  }
   return version.split(".")[0] === String(major) ? version : undefined;
 }
 
@@ -33,21 +38,26 @@ const DEFAULT_NPM_REGISTRY = "https://registry.npmjs.org";
 function resolveNpmRegistry(): string {
   const fromEnv =
     process.env.npm_config_registry ?? process.env.NPM_CONFIG_REGISTRY;
-  const registry = (fromEnv?.trim() || DEFAULT_NPM_REGISTRY).replace(/\/+$/, "");
+  const registry = (fromEnv?.trim() || DEFAULT_NPM_REGISTRY).replace(
+    /\/+$/,
+    ""
+  );
   return registry || DEFAULT_NPM_REGISTRY;
 }
 
 async function fetchNpmDistVersion(
   packageName: string,
-  distTag: string,
+  distTag: string
 ): Promise<string | null> {
   try {
     const registry = resolveNpmRegistry();
     const res = await fetch(
       `${registry}/${encodeURIComponent(packageName)}/${distTag}`,
-      { signal: AbortSignal.timeout(5000) },
+      { signal: AbortSignal.timeout(5000) }
     );
-    if (!res.ok) return null;
+    if (!res.ok) {
+      return null;
+    }
     const data = (await res.json()) as { version?: string };
     return data.version ?? null;
   } catch {
@@ -56,17 +66,20 @@ async function fetchNpmDistVersion(
 }
 
 export async function resolveMigrationTargetVersions(
-  mode: MigrationMode,
+  mode: MigrationMode
 ): Promise<MigrationTargetVersions> {
   if (mode === "stable") {
-    const latest = matchingMajor(await fetchNpmDistVersion("typescript", "latest"), 7);
+    const latest = matchingMajor(
+      await fetchNpmDistVersion("typescript", "latest"),
+      7
+    );
     return {
       typescript: {
-        range: FALLBACK_STABLE,
-        resolvedLatest: latest ?? undefined,
         note: latest
           ? `${FALLBACK_STABLE} resolves to ${latest} on install`
           : `${FALLBACK_STABLE} — install picks newest matching 7.x`,
+        range: FALLBACK_STABLE,
+        resolvedLatest: latest ?? undefined,
       },
     };
   }
@@ -75,11 +88,11 @@ export async function resolveMigrationTargetVersions(
     const next = await fetchNpmDistVersion("typescript", "next");
     return {
       typescript: {
-        range: "next",
-        resolvedLatest: next ?? undefined,
         note: next
           ? `next tag currently points at ${next}`
           : "next dist-tag — rolling nightly builds",
+        range: "next",
+        resolvedLatest: next ?? undefined,
       },
     };
   }
@@ -93,19 +106,21 @@ export async function resolveMigrationTargetVersions(
     const ts6 = matchingMajor(ts6Latest, 6);
     return {
       nativeAlias: {
+        note: "TypeScript 7 native compiler (tsc)",
         range: `npm:typescript@${FALLBACK_STABLE}`,
         resolvedLatest: ts7 ?? undefined,
-        note: "TypeScript 7 native compiler (tsc)",
       },
       typescript: {
+        note: "TypeScript 6 API for tooling (tsc6)",
         range: `npm:@typescript/typescript6@${FALLBACK_TYPESCRIPT6}`,
         resolvedLatest: ts6 ?? undefined,
-        note: "TypeScript 6 API for tooling (tsc6)",
       },
       typescript6: {
+        note: ts6
+          ? `latest TS6 API package is ${ts6}`
+          : "TS6 compatibility API",
         range: FALLBACK_TYPESCRIPT6,
         resolvedLatest: ts6 ?? undefined,
-        note: ts6 ? `latest TS6 API package is ${ts6}` : "TS6 compatibility API",
       },
     };
   }
@@ -117,43 +132,45 @@ export async function resolveMigrationTargetVersions(
   ]);
   return {
     nativeAlias: {
+      note: "TypeScript nightly native compiler (tsc)",
       range: "npm:typescript@next",
       resolvedLatest: tsNext ?? undefined,
-      note: "TypeScript nightly native compiler (tsc)",
     },
     typescript: {
+      note: "TypeScript 6 API for tooling (tsc6)",
       range: `npm:@typescript/typescript6@${FALLBACK_TYPESCRIPT6}`,
       resolvedLatest: ts6 ?? undefined,
-      note: "TypeScript 6 API for tooling (tsc6)",
     },
     typescript6: {
+      note: ts6 ? `latest TS6 API package is ${ts6}` : "TS6 compatibility API",
       range: FALLBACK_TYPESCRIPT6,
       resolvedLatest: ts6 ?? undefined,
-      note: ts6 ? `latest TS6 API package is ${ts6}` : "TS6 compatibility API",
     },
   };
 }
 
 export function formatTargetVersions(
   mode: MigrationMode,
-  versions: MigrationTargetVersions,
+  versions: MigrationTargetVersions
 ): string[] {
   const lines: string[] = [];
 
   if (versions.nativeAlias) {
     lines.push(
-      `  @typescript/native  ${versions.nativeAlias.range}` +
-        (versions.nativeAlias.resolvedLatest
+      `  @typescript/native  ${versions.nativeAlias.range}${
+        versions.nativeAlias.resolvedLatest
           ? `  → ${versions.nativeAlias.resolvedLatest}`
-          : ""),
+          : ""
+      }`
     );
   }
 
   lines.push(
-    `  typescript  ${versions.typescript.range}` +
-      (versions.typescript.resolvedLatest
+    `  typescript  ${versions.typescript.range}${
+      versions.typescript.resolvedLatest
         ? `  → ${versions.typescript.resolvedLatest}`
-        : ""),
+        : ""
+    }`
   );
 
   if (versions.typescript6?.resolvedLatest && mode.startsWith("compat")) {
