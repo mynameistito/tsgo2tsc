@@ -67,5 +67,5 @@ export async function scanProjectFiles(
     onlyFiles: true,
   });
 
-  return [...new Set(files)].toSorted();
+  return [...new Set(files)].sort();
 }

@@ -42,7 +42,7 @@ export async function discoverWorkspaces(
 
   const packages: WorkspacePackage[] = [];
 
-  for (const dir of [...dirs].toSorted()) {
+  for (const dir of [...dirs].sort()) {
     const packageJsonPath =
       dir === "." ? rootPkgPath : join(rootDir, dir, "package.json");
     const content = await readText(packageJsonPath);
@@ -64,7 +64,7 @@ export async function discoverWorkspaces(
   return packages;
 }
 
-function getWorkspacePatterns(
+async function getWorkspacePatterns(
   rootDir: string,
   rootPkg: PackageJson
 ): Promise<string[]> {

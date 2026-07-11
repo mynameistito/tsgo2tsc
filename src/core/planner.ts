@@ -137,7 +137,7 @@ function findOwningPackage(
   packages: WorkspacePackage[],
   relPath: string
 ): string | null {
-  const sorted = [...packages].toSorted((a, b) => b.dir.length - a.dir.length);
+  const sorted = [...packages].sort((a, b) => b.dir.length - a.dir.length);
 
   for (const pkg of sorted) {
     if (pkg.dir === ".") {

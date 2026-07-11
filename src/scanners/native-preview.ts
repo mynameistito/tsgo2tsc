@@ -77,7 +77,7 @@ export async function scanNativePreviewUsage(
     findings.set(".", entry);
   }
 
-  return [...findings.values()].toSorted((a, b) => a.dir.localeCompare(b.dir));
+  return [...findings.values()].sort((a, b) => a.dir.localeCompare(b.dir));
 }
 
 async function scanLockfilesForNativePreview(
