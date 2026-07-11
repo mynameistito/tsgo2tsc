@@ -24,7 +24,9 @@ export interface CliMigrateOptions {
   cwd?: string;
 }
 
-export function resolveMigrateOptions(opts: CliMigrateOptions): MigrateOptions {
+export const resolveMigrateOptions = (
+  opts: CliMigrateOptions
+): MigrateOptions => {
   const target = resolveTargetDir(opts.cwd ?? opts.dir);
 
   return {
@@ -47,4 +49,4 @@ export function resolveMigrateOptions(opts: CliMigrateOptions): MigrateOptions {
     write: opts.write ?? false,
     yes: opts.yes ?? false,
   };
-}
+};

@@ -12,7 +12,7 @@ import {
 import type { MigrateOptions } from "../types.js";
 import { log } from "../utils/logger.js";
 
-export async function runScan(options: MigrateOptions): Promise<void> {
+export const runScan = async (options: MigrateOptions): Promise<void> => {
   const ctx = await buildProjectContext(options);
   const plan = await createMigrationPlan(ctx);
   const findings = await scanNativePreviewUsage(ctx);
@@ -53,4 +53,4 @@ export async function runScan(options: MigrateOptions): Promise<void> {
       log.dim(`  - ${reason}`);
     }
   }
-}
+};
