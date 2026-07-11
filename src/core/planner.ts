@@ -9,6 +9,7 @@ import {
 } from "../scanners/configs.js";
 import { scanPackageJson } from "../scanners/package-json.js";
 import { scanSourceImports } from "../scanners/source-imports.js";
+import { sortedCopy } from "../utils/sort.js";
 import type {
   MigrationAction,
   MigrationMode,
@@ -137,7 +138,10 @@ function findOwningPackage(
   packages: WorkspacePackage[],
   relPath: string
 ): string | null {
-  const sorted = [...packages].sort((a, b) => b.dir.length - a.dir.length);
+  const sorted = sortedCopy(
+    packages,
+    (left, right) => right.dir.length - left.dir.length
+  );
 
   for (const pkg of sorted) {
     if (pkg.dir === ".") {

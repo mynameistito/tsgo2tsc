@@ -1,67 +1,73 @@
 /** Token-safe tsgo -> tsc replacements in command strings */
 const TSGo_REPLACEMENTS: { pattern: RegExp; replacement: string }[] = [
   {
-    pattern: /(^|[;&|({}\s/])bunx\s+tsgo(?=$|[\s;&|)])/gu,
-    replacement: "$1bunx tsc",
+    pattern: /(?<prefix>^|[;&|({}\s/])bunx\s+tsgo(?=$|[\s;&|)])/gu,
+    replacement: "$<prefix>bunx tsc",
   },
   {
-    pattern: /(^|[;&|({}\s/])npx\s+tsgo(?=$|[\s;&|)])/gu,
-    replacement: "$1npx tsc",
+    pattern: /(?<prefix>^|[;&|({}\s/])npx\s+tsgo(?=$|[\s;&|)])/gu,
+    replacement: "$<prefix>npx tsc",
   },
   {
-    pattern: /(^|[;&|({}\s/])pnpm\s+tsgo(?=$|[\s;&|)])/gu,
-    replacement: "$1pnpm tsc",
+    pattern: /(?<prefix>^|[;&|({}\s/])pnpm\s+tsgo(?=$|[\s;&|)])/gu,
+    replacement: "$<prefix>pnpm tsc",
   },
   {
-    pattern: /(^|[;&|({}\s/])yarn\s+tsgo(?=$|[\s;&|)])/gu,
-    replacement: "$1yarn tsc",
+    pattern: /(?<prefix>^|[;&|({}\s/])yarn\s+tsgo(?=$|[\s;&|)])/gu,
+    replacement: "$<prefix>yarn tsc",
   },
   {
-    pattern: /(^|[;&|({}\s/])tsgo\s+--build\b/gu,
-    replacement: "$1tsc --build",
+    pattern: /(?<prefix>^|[;&|({}\s/])tsgo\s+--build\b/gu,
+    replacement: "$<prefix>tsc --build",
   },
-  { pattern: /(^|[;&|({}\s/])tsgo\s+-b\b/gu, replacement: "$1tsc -b" },
-  { pattern: /(^|[;&|({}\s/])tsgo(?=$|[\s;&|)])/gu, replacement: "$1tsc" },
+  {
+    pattern: /(?<prefix>^|[;&|({}\s/])tsgo\s+-b\b/gu,
+    replacement: "$<prefix>tsc -b",
+  },
+  {
+    pattern: /(?<prefix>^|[;&|({}\s/])tsgo(?=$|[\s;&|)])/gu,
+    replacement: "$<prefix>tsc",
+  },
 ];
 
-export function replaceTsgoInCommand(command: string): string {
+export const replaceTsgoInCommand = (command: string): string => {
   let result = command;
   for (const { pattern, replacement } of TSGo_REPLACEMENTS) {
     result = result.replace(pattern, replacement);
   }
   return result;
-}
+};
 
-export function replaceTsgoInText(
+export const replaceTsgoInText = (
   content: string,
   options?: { docs?: boolean }
-): string {
+): string => {
   if (options?.docs) {
     return replaceTsgoInCommand(content);
   }
   return content;
-}
+};
 
-export function replaceTsgoInRunLine(line: string): string {
-  const match = /^(\s*-?\s*run:\s*)(.*)$/u.exec(line);
+export const replaceTsgoInRunLine = (line: string): string => {
+  const match = /^(?<prefix>\s*-?\s*run:\s*)(?<command>.*)$/u.exec(line);
   if (!match) {
     return line;
   }
-  return `${match[1]}${replaceTsgoInCommand(match[2] ?? "")}`;
-}
+  return `${match.groups?.prefix ?? ""}${replaceTsgoInCommand(match.groups?.command ?? "")}`;
+};
 
-export function addTscFlags(
+export const addTscFlags = (
   command: string,
   opts: { checkers?: number; builders?: number }
-): string {
+): string => {
   const wantsBuilders =
     opts.builders !== undefined &&
-    /\btsc\s+(-b|--build)\b/.test(command) &&
-    !/--builders/.test(command);
+    /\btsc\s+(?:-b|--build)\b/u.test(command) &&
+    !/--builders/u.test(command);
   const wantsCheckers =
     opts.checkers !== undefined &&
-    /\btsc\b/.test(command) &&
-    !/--checkers/.test(command);
+    /\btsc\b/u.test(command) &&
+    !/--checkers/u.test(command);
 
   if (!wantsBuilders && !wantsCheckers) {
     return command;
@@ -77,5 +83,5 @@ export function addTscFlags(
     flags.push(`--checkers ${opts.checkers}`);
   }
 
-  return command.replace(/\btsc\b/, `tsc ${flags.join(" ")}`);
-}
+  return command.replace(/\btsc\b/u, `tsc ${flags.join(" ")}`);
+};

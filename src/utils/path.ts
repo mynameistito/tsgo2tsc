@@ -1,8 +1,8 @@
 import { existsSync, statSync } from "node:fs";
-import { resolve } from "node:path";
+import path from "node:path";
 
-export function resolveTargetDir(input?: string): string {
-  const target = resolve(
+export const resolveTargetDir = (input?: string): string => {
+  const target = path.resolve(
     process.cwd(),
     (input?.trim() || ".").replaceAll("\\", "/")
   );
@@ -15,9 +15,9 @@ export function resolveTargetDir(input?: string): string {
     throw new Error(`Project path is not a directory: ${target}`);
   }
 
-  if (!existsSync(resolve(target, "package.json"))) {
+  if (!existsSync(path.resolve(target, "package.json"))) {
     throw new Error(`No package.json found in ${target}`);
   }
 
   return target;
-}
+};

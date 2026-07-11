@@ -1,11 +1,11 @@
 import { parse, modify, applyEdits, printParseErrorCode } from "jsonc-parser";
 import type { ParseError } from "jsonc-parser";
 
-export function parseJsonc<T>(content: string): T {
+export const parseJsonc = <T>(content: string): T => {
   const errors: ParseError[] = [];
   const result = parse(content, errors, { allowTrailingComma: true });
   if (errors.length > 0) {
-    const first = errors[0];
+    const [first] = errors;
     if (!first) {
       throw new Error("Invalid JSONC: unknown parse error");
     }
@@ -17,12 +17,12 @@ export function parseJsonc<T>(content: string): T {
     throw new Error("Invalid JSONC: empty or unreadable document");
   }
   return result as T;
-}
+};
 
-export function patchJsonc(
+export const patchJsonc = (
   content: string,
   edits: { path: (string | number)[]; value: unknown }[]
-): string {
+): string => {
   let result = content;
   for (const edit of edits) {
     result = applyEdits(
@@ -33,12 +33,12 @@ export function patchJsonc(
     );
   }
   return result;
-}
+};
 
-export function patchJsonSettings(
+export const patchJsonSettings = (
   content: string,
   mutator: (settings: Record<string, unknown>) => void
-): string {
+): string => {
   const before = parseJsonc<Record<string, unknown>>(content);
   const after = structuredClone(before) as Record<string, unknown>;
   mutator(after);
@@ -58,4 +58,4 @@ export function patchJsonSettings(
   }
 
   return result.endsWith("\n") ? result : `${result}\n`;
-}
+};

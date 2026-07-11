@@ -3,6 +3,7 @@ import { scanPackageJson } from "../scanners/package-json.js";
 import { scanVscodeSettings } from "../scanners/vscode.js";
 import type { PackageJson, ProjectContext } from "../types.js";
 import { readText } from "../utils/fs.js";
+import { sortedCopy } from "../utils/sort.js";
 
 const NATIVE_PREVIEW = "@typescript/native-preview";
 
@@ -77,7 +78,10 @@ export async function scanNativePreviewUsage(
     findings.set(".", entry);
   }
 
-  return [...findings.values()].sort((a, b) => a.dir.localeCompare(b.dir));
+  return sortedCopy(
+    [...findings.values()],
+    (left, right) => left.dir.localeCompare(right.dir)
+  );
 }
 
 async function scanLockfilesForNativePreview(

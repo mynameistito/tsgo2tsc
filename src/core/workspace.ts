@@ -6,6 +6,7 @@ import YAML from "yaml";
 
 import type { PackageJson, WorkspacePackage } from "../types.js";
 import { readText } from "../utils/fs.js";
+import { sortedStrings } from "../utils/sort.js";
 
 export async function discoverWorkspaces(
   rootDir: string
@@ -42,7 +43,7 @@ export async function discoverWorkspaces(
 
   const packages: WorkspacePackage[] = [];
 
-  for (const dir of [...dirs].sort()) {
+  for (const dir of sortedStrings([...dirs])) {
     const packageJsonPath =
       dir === "." ? rootPkgPath : join(rootDir, dir, "package.json");
     const content = await readText(packageJsonPath);
