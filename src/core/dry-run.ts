@@ -1,8 +1,7 @@
 import pc from "picocolors";
 
 import type { MigrationAction, MigrationPlan } from "../types.js";
-import { readText } from "../utils/fs.js";
-import { relativePath } from "../utils/fs.js";
+import { readText, relativePath } from "../utils/fs.js";
 import {
   formatAddedDependencyLine,
   getLineContent,

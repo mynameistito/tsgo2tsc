@@ -51,7 +51,10 @@ function sortSection(key: string, value: unknown): unknown {
     const record = value as Record<string, string>;
     const sorted: Record<string, string> = {};
     for (const k of Object.keys(record).toSorted()) {
-      sorted[k] = record[k]!;
+      const version = record[k];
+      if (version !== undefined) {
+        sorted[k] = version;
+      }
     }
     return sorted;
   }

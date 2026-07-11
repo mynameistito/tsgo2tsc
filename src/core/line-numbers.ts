@@ -11,7 +11,7 @@ export function findLineContaining(
 ): number | null {
   const lines = content.split("\n");
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i]!;
+    const line = lines[i] ?? "";
     const matches =
       typeof needle === "string" ? line.includes(needle) : needle.test(line);
     if (matches) {
@@ -31,7 +31,7 @@ export function findDependencyInsertLine(
   let lastDepLine = 0;
 
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i]!;
+    const line = lines[i] ?? "";
     if (line.includes(`"${section}"`)) {
       inSection = true;
       sectionStart = i + 2;

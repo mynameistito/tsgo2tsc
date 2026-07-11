@@ -20,9 +20,9 @@ export function removeDependency(
   if (!deps || !(name in deps)) {
     return false;
   }
-  delete deps[name];
+  Reflect.deleteProperty(deps, name);
   if (Object.keys(deps).length === 0) {
-    delete pkg[section];
+    Reflect.deleteProperty(pkg, section);
   }
   return true;
 }

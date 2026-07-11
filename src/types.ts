@@ -59,12 +59,12 @@ export interface ProjectContext {
 
 export interface Recipe {
   name: string;
-  detect(ctx: ProjectContext, pkg: WorkspacePackage): DetectionResult;
-  plan?(
+  detect: (ctx: ProjectContext, pkg: WorkspacePackage) => DetectionResult;
+  plan?: (
     ctx: ProjectContext,
     pkg: WorkspacePackage,
     mode: MigrationMode
-  ): MigrationAction[];
+  ) => MigrationAction[];
   risks?: string[];
 }
 
