@@ -1,20 +1,21 @@
 import { readFile } from "node:fs/promises";
-import { join } from "node:path";
+import path from "node:path";
+
 import { buildProjectContext } from "../core/context.js";
 import { createMigrationPlan } from "../core/planner.js";
 import { getLatestSnapshotInfo } from "../core/snapshot.js";
 import {
-  formatNativePreviewFinding,
-  scanNativePreviewUsage,
-} from "../scanners/native-preview.js";
-import {
   formatTargetVersions,
   resolveMigrationTargetVersions,
 } from "../core/versions.js";
-import { log } from "../utils/logger.js";
+import {
+  formatNativePreviewFinding,
+  scanNativePreviewUsage,
+} from "../scanners/native-preview.js";
 import type { MigrateOptions, MigrationRecord } from "../types.js";
+import { log } from "../utils/logger.js";
 
-export async function runDoctor(options: MigrateOptions): Promise<void> {
+export const runDoctor = async (options: MigrateOptions): Promise<void> => {
   const ctx = await buildProjectContext(options);
   const plan = await createMigrationPlan(ctx);
   const findings = await scanNativePreviewUsage(ctx);
@@ -33,14 +34,13 @@ export async function runDoctor(options: MigrateOptions): Promise<void> {
     log.dim(line);
   }
 
+  log.line();
   if (findings.length > 0) {
-    log.line();
     log.warn("Native preview / tsgo still detected:");
     for (const finding of findings) {
       log.dim(`  ${formatNativePreviewFinding(finding)}`);
     }
   } else {
-    log.line();
     log.success("No @typescript/native-preview or tsgo usage found.");
   }
 
@@ -52,7 +52,7 @@ export async function runDoctor(options: MigrateOptions): Promise<void> {
 
     try {
       const record = JSON.parse(
-        await readFile(join(latest.snapshotDir, "migration.json"), "utf8"),
+        await readFile(path.join(latest.snapshotDir, "migration.json"), "utf-8")
       ) as MigrationRecord;
       if (record.verification) {
         log.line();
@@ -79,4 +79,4 @@ export async function runDoctor(options: MigrateOptions): Promise<void> {
       log.dim(`  - ${tool}`);
     }
   }
-}
+};

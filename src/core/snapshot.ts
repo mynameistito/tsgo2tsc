@@ -1,7 +1,12 @@
 import { mkdir, writeFile, readFile, cp, readdir } from "node:fs/promises";
 import { join, dirname } from "node:path";
+
+import type {
+  MigrationAction,
+  MigrationRecord,
+  SerializableMigrationAction,
+} from "../types.js";
 import { readText } from "../utils/fs.js";
-import type { MigrationAction, MigrationRecord, SerializableMigrationAction } from "../types.js";
 
 const BACKUP_DIR = ".tsgo2tsc";
 
@@ -13,9 +18,9 @@ export async function createSnapshot(
   cwd: string,
   filesToBackup: string[],
   record: MigrationRecord,
-  afterPatch?: string,
+  afterPatch?: string
 ): Promise<string> {
-  const timestamp = record.createdAt.replace(/:/g, "-");
+  const timestamp = record.createdAt.replaceAll(":", "-");
   const snapshotDir = join(getBackupRoot(cwd), "snapshots", timestamp);
   const beforeDir = join(snapshotDir, "before");
 
@@ -23,25 +28,27 @@ export async function createSnapshot(
 
   for (const file of filesToBackup) {
     const content = await readText(file);
-    if (content === null) continue;
+    if (content === null) {
+      continue;
+    }
     const rel = file.startsWith(cwd)
       ? file.slice(cwd.length).replace(/^[/\\]/, "")
       : file;
     const dest = join(beforeDir, rel);
     await mkdir(dirname(dest), { recursive: true });
-    await writeFile(dest, content, "utf8");
+    await writeFile(dest, content, "utf-8");
   }
 
   await writeMigrationRecord(snapshotDir, record);
 
   if (afterPatch) {
-    await writeFile(join(snapshotDir, "after.patch"), afterPatch, "utf8");
+    await writeFile(join(snapshotDir, "after.patch"), afterPatch, "utf-8");
   }
 
   await writeFile(
     join(getBackupRoot(cwd), "latest.json"),
-    `${JSON.stringify({ snapshot: timestamp, createdAt: record.createdAt }, null, 2)}\n`,
-    "utf8",
+    `${JSON.stringify({ createdAt: record.createdAt, snapshot: timestamp }, null, 2)}\n`,
+    "utf-8"
   );
 
   return snapshotDir;
@@ -49,43 +56,43 @@ export async function createSnapshot(
 
 export async function writeMigrationRecord(
   snapshotDir: string,
-  record: MigrationRecord,
+  record: MigrationRecord
 ): Promise<void> {
   await writeFile(
     join(snapshotDir, "migration.json"),
     `${JSON.stringify(record, null, 2)}\n`,
-    "utf8",
+    "utf-8"
   );
 }
 
 export function serializeActions(
-  actions: MigrationAction[],
+  actions: MigrationAction[]
 ): SerializableMigrationAction[] {
   return actions.map((action) => {
     if (action.type !== "patchFile") {
       return action;
     }
     return {
-      type: "patchFile",
-      path: action.path,
       description: action.description,
+      path: action.path,
+      type: "patchFile",
     };
   });
 }
 
 export async function getLatestSnapshotInfo(
-  cwd: string,
+  cwd: string
 ): Promise<{ snapshotDir: string; createdAt?: string } | null> {
   const latestPath = join(getBackupRoot(cwd), "latest.json");
   try {
-    const content = await readFile(latestPath, "utf8");
+    const content = await readFile(latestPath, "utf-8");
     const latest = JSON.parse(content) as {
       snapshot: string;
       createdAt?: string;
     };
     return {
-      snapshotDir: join(getBackupRoot(cwd), "snapshots", latest.snapshot),
       createdAt: latest.createdAt,
+      snapshotDir: join(getBackupRoot(cwd), "snapshots", latest.snapshot),
     };
   } catch {
     return null;
@@ -99,7 +106,7 @@ export async function getLatestSnapshot(cwd: string): Promise<string | null> {
 
 export async function rollbackFromSnapshot(
   cwd: string,
-  snapshotDir: string,
+  snapshotDir: string
 ): Promise<string[]> {
   const beforeDir = join(snapshotDir, "before");
   const restored: string[] = [];
@@ -130,12 +137,14 @@ export function collectFilesToBackup(actions: MigrationAction[]): string[] {
     switch (action.type) {
       case "removeDependency":
       case "addDependency":
-      case "replaceScriptToken":
+      case "replaceScriptToken": {
         files.add(action.packageJsonPath);
         break;
-      case "patchFile":
+      }
+      case "patchFile": {
         files.add(action.path);
         break;
+      }
     }
   }
   return [...files];

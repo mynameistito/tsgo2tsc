@@ -1,43 +1,47 @@
 import type { MigrationAction } from "../types.js";
 
-export function getLineContent(content: string, line: number): string {
+export const getLineContent = (content: string, line: number): string => {
   const lines = content.split("\n");
   return lines[line - 1]?.trimEnd() ?? "";
-}
+};
 
-export function findLineContaining(
+export const findLineContaining = (
   content: string,
-  needle: string | RegExp,
-): number | null {
+  needle: string | RegExp
+): number | null => {
   const lines = content.split("\n");
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i]!;
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i] ?? "";
     const matches =
       typeof needle === "string" ? line.includes(needle) : needle.test(line);
-    if (matches) return i + 1;
+    if (matches) {
+      return i + 1;
+    }
   }
   return null;
-}
+};
 
-export function findDependencyInsertLine(
+export const findDependencyInsertLine = (
   content: string,
-  section: string,
-): number | null {
+  section: string
+): number | null => {
   const lines = content.split("\n");
   let inSection = false;
   let sectionStart = 1;
   let lastDepLine = 0;
 
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i]!;
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i] ?? "";
     if (line.includes(`"${section}"`)) {
       inSection = true;
       sectionStart = i + 2;
       continue;
     }
-    if (!inSection) continue;
+    if (!inSection) {
+      continue;
+    }
 
-    if (/^\s*},?\s*$/.test(line)) {
+    if (/^\s*\},?\s*$/u.test(line)) {
       return lastDepLine > 0 ? lastDepLine + 1 : sectionStart;
     }
     if (line.includes('":')) {
@@ -46,12 +50,31 @@ export function findDependencyInsertLine(
   }
 
   return lastDepLine > 0 ? lastDepLine + 1 : null;
-}
+};
 
-export function resolveActionLines(
+const resolvePatchLine = (
   content: string,
-  action: MigrationAction,
-): { minusLine?: number; plusLine?: number } {
+  searchHint: string | undefined
+): number | null => {
+  if (!searchHint) {
+    return null;
+  }
+  if (searchHint === "useTsgo") {
+    return findLineContaining(content, "useTsgo");
+  }
+  if (searchHint === "typescript.tsdk") {
+    return findLineContaining(content, "typescript.tsdk");
+  }
+  if (searchHint === "tsgo") {
+    return findLineContaining(content, "tsgo");
+  }
+  return findLineContaining(content, searchHint);
+};
+
+export const resolveActionLines = (
+  content: string,
+  action: MigrationAction
+): { minusLine?: number; plusLine?: number } => {
   switch (action.type) {
     case "removeDependency": {
       const line = findLineContaining(content, `"${action.name}"`);
@@ -63,7 +86,8 @@ export function resolveActionLines(
         return { minusLine: existing, plusLine: existing };
       }
       return {
-        plusLine: findDependencyInsertLine(content, action.section) ?? undefined,
+        plusLine:
+          findDependencyInsertLine(content, action.section) ?? undefined,
       };
     }
     case "replaceScriptToken": {
@@ -76,31 +100,13 @@ export function resolveActionLines(
       const line = resolvePatchLine(content, action.searchHint);
       return { minusLine: line ?? undefined, plusLine: line ?? undefined };
     }
-    default:
+    default: {
       return {};
+    }
   }
-}
+};
 
-function resolvePatchLine(
-  content: string,
-  searchHint: string | undefined,
-): number | null {
-  if (!searchHint) return null;
-  if (searchHint === "useTsgo") {
-    return findLineContaining(content, "useTsgo");
-  }
-  if (searchHint === "typescript.tsdk") {
-    return findLineContaining(content, "typescript.tsdk");
-  }
-  if (searchHint === "tsgo") {
-    return findLineContaining(content, "tsgo");
-  }
-  return findLineContaining(content, searchHint);
-}
-
-export function formatAddedDependencyLine(
+export const formatAddedDependencyLine = (
   name: string,
-  version: string,
-): string {
-  return `    "${name}": "${version}",`;
-}
+  version: string
+): string => `    "${name}": "${version}",`;

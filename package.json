@@ -2,7 +2,30 @@
   "name": "tsgo2tsc",
   "version": "0.0.1",
   "description": "Migrate projects from @typescript/native-preview and tsgo to the TypeScript 7 tsc flow.",
+  "keywords": [
+    "cli",
+    "migration",
+    "native-preview",
+    "tsc",
+    "tsgo",
+    "typescript"
+  ],
+  "homepage": "https://github.com/mynameistito/tsgo2tsc#readme",
+  "bugs": {
+    "url": "https://github.com/mynameistito/tsgo2tsc/issues"
+  },
+  "license": "MIT",
+  "author": "mynameistito",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mynameistito/tsgo2tsc.git"
+  },
   "type": "module",
+  "packageManager": "bun@1.3.14",
+  "engines": {
+    "node": ">=18"
+  },
+  "sideEffects": false,
   "bin": {
     "tsgo2tsc": "./dist/cli.mjs"
   },
@@ -11,37 +34,18 @@
     "README.md",
     "LICENSE"
   ],
-  "sideEffects": false,
-  "author": "mynameistito",
-  "license": "MIT",
-  "homepage": "https://github.com/mynameistito/tsgo2tsc#readme",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/mynameistito/tsgo2tsc.git"
-  },
-  "bugs": {
-    "url": "https://github.com/mynameistito/tsgo2tsc/issues"
-  },
-  "keywords": [
-    "typescript",
-    "tsgo",
-    "native-preview",
-    "migration",
-    "tsc",
-    "cli"
-  ],
-  "engines": {
-    "node": ">=18"
-  },
   "publishConfig": {
     "access": "public"
   },
   "scripts": {
     "build": "tsdown",
     "build:watch": "tsdown --watch",
+    "check": "ultracite check",
     "changeset": "changeset",
     "changeset-add": "bun run ./scripts/add-changeset.ts",
     "dev": "bun src/cli.ts",
+    "fix": "ultracite fix",
+    "prepare": "lefthook install",
     "release": "bun run ./scripts/publish.ts",
     "test": "bun test",
     "typecheck": "tsc --noEmit"
@@ -57,10 +61,13 @@
     "yaml": "^2.5.0"
   },
   "devDependencies": {
-    "@types/bun": "^1.3.14",
     "@changesets/cli": "^2.31.0",
+    "@types/bun": "^1.3.14",
+    "lefthook": "^2.1.10",
+    "oxfmt": "^0.58.0",
+    "oxlint": "^1.73.0",
     "tsdown": "^0.22.0",
-    "typescript": "^7.0.0"
-  },
-  "packageManager": "bun@1.3.14"
+    "typescript": "^7.0.0",
+    "ultracite": "7.9.3"
+  }
 }

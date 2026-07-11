@@ -1,6 +1,6 @@
-import { readText } from "../utils/fs.js";
 import { parseJsonc } from "../patchers/jsonc.js";
 import type { ProjectContext } from "../types.js";
+import { readText } from "../utils/fs.js";
 
 const DEPRECATED_TSCONFIG_KEYS = [
   "importsNotUsedAsValues",
@@ -13,16 +13,22 @@ const DEPRECATED_TSCONFIG_KEYS = [
 ] as const;
 
 export async function scanTsconfigWarnings(
-  ctx: ProjectContext,
-): Promise<Array<{ file: string; message: string; severity: "info" | "warning" }>> {
-  const warnings: Array<{ file: string; message: string; severity: "info" | "warning" }> = [];
+  ctx: ProjectContext
+): Promise<{ file: string; message: string; severity: "info" | "warning" }[]> {
+  const warnings: {
+    file: string;
+    message: string;
+    severity: "info" | "warning";
+  }[] = [];
   const tsconfigs = ctx.files.filter(
-    (f) => /tsconfig.*\.json$/.test(f) || f.endsWith("tsconfig.json"),
+    (f) => /tsconfig.*\.json$/.test(f) || f.endsWith("tsconfig.json")
   );
 
   for (const file of tsconfigs) {
     const content = await readText(file);
-    if (!content) continue;
+    if (!content) {
+      continue;
+    }
 
     try {
       const config = parseJsonc<{
@@ -65,17 +71,22 @@ export async function scanTsconfigWarnings(
 }
 
 export async function scanTsdownDeclaration(
-  ctx: ProjectContext,
+  ctx: ProjectContext
 ): Promise<boolean> {
   const tsdownConfigs = ctx.files.filter((f) =>
-    /tsdown\.config\.(js|mjs|ts)$/.test(f),
+    /tsdown\.config\.(js|mjs|ts)$/.test(f)
   );
 
   for (const file of tsdownConfigs) {
     const content = await readText(file);
-    if (!content) continue;
+    if (!content) {
+      continue;
+    }
     const uncommented = stripComments(content);
-    if (/\bdts\s*:\s*true\b/.test(uncommented) || /\bdeclaration\s*:\s*true\b/.test(uncommented)) {
+    if (
+      /\bdts\s*:\s*true\b/.test(uncommented) ||
+      /\bdeclaration\s*:\s*true\b/.test(uncommented)
+    ) {
       return true;
     }
   }
@@ -111,15 +122,22 @@ function stripComments(content: string): string {
     }
 
     if (char === "/" && next === "/") {
-      while (i < content.length && content[i] !== "\n") i++;
+      while (i < content.length && content[i] !== "\n") {
+        i++;
+      }
       result += "\n";
       continue;
     }
 
     if (char === "/" && next === "*") {
       i += 2;
-      while (i < content.length && !(content[i] === "*" && content[i + 1] === "/")) {
-        if (content[i] === "\n") result += "\n";
+      while (
+        i < content.length &&
+        !(content[i] === "*" && content[i + 1] === "/")
+      ) {
+        if (content[i] === "\n") {
+          result += "\n";
+        }
         i++;
       }
       i++;

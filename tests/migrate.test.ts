@@ -1,28 +1,29 @@
-import { cp, mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
-import { join } from "node:path";
-import { tmpdir } from "node:os";
 import { describe, expect, test } from "bun:test";
-import { buildProjectContext } from "../src/core/context.js";
-import { createMigrationPlan } from "../src/core/planner.js";
+import { cp, mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
 import { applyActions } from "../src/core/apply.js";
-import {
-  collectFilesToBackup,
-  createSnapshot,
-  rollbackFromSnapshot,
-  serializeActions,
-} from "../src/core/snapshot.js";
-import { addTscFlags, replaceTsgoInCommand } from "../src/patchers/text.js";
-import { detectPackageManager } from "../src/core/package-manager.js";
+import { buildProjectContext } from "../src/core/context.js";
 import { highlightChange } from "../src/core/dry-run.js";
 import {
   findDependencyInsertLine,
   findLineContaining,
   resolveActionLines,
 } from "../src/core/line-numbers.js";
-import { planGithubActions } from "../src/recipes/github-actions.js";
+import { detectPackageManager } from "../src/core/package-manager.js";
+import { createMigrationPlan } from "../src/core/planner.js";
+import {
+  collectFilesToBackup,
+  createSnapshot,
+  rollbackFromSnapshot,
+  serializeActions,
+} from "../src/core/snapshot.js";
 import { parseJsonc } from "../src/patchers/jsonc.js";
-import { resolveTargetDir } from "../src/utils/path.js";
+import { addTscFlags, replaceTsgoInCommand } from "../src/patchers/text.js";
+import { planGithubActions } from "../src/recipes/github-actions.js";
 import type { MigrateOptions } from "../src/types.js";
+import { resolveTargetDir } from "../src/utils/path.js";
 
 const FIXTURES_DIR = join(import.meta.dir, "fixtures");
 
@@ -32,30 +33,36 @@ async function copyFixture(name: string): Promise<string> {
   return dir;
 }
 
-function baseOptions(cwd: string, overrides: Partial<MigrateOptions> = {}): MigrateOptions {
+function baseOptions(
+  cwd: string,
+  overrides: Partial<MigrateOptions> = {}
+): MigrateOptions {
   return {
-    nightly: false,
-    stable: false,
     compat: "auto",
-    pm: "auto",
+    cwd,
     dryRun: false,
-    write: true,
+    fixTsconfig: false,
     install: false,
+    nightly: false,
+    pm: "auto",
+    stable: false,
     test: false,
     updateCi: false,
-    updateVscode: false,
-    fixTsconfig: false,
     updateDocs: false,
+    updateVscode: false,
+    write: true,
     yes: true,
-    cwd,
     ...overrides,
   };
 }
 
 async function migrateFixture(
   name: string,
-  overrides: Partial<MigrateOptions> = {},
-): Promise<{ cwd: string; plan: Awaited<ReturnType<typeof createMigrationPlan>> }> {
+  overrides: Partial<MigrateOptions> = {}
+): Promise<{
+  cwd: string;
+  plan: Awaited<ReturnType<typeof createMigrationPlan>>;
+}> {
   const cwd = await copyFixture(name);
   const ctx = await buildProjectContext(baseOptions(cwd, overrides));
   const plan = await createMigrationPlan(ctx);
@@ -64,7 +71,7 @@ async function migrateFixture(
 }
 
 async function readJson(path: string): Promise<unknown> {
-  return JSON.parse(await readFile(path, "utf8"));
+  return JSON.parse(await readFile(path, "utf-8"));
 }
 
 describe("line numbers", () => {
@@ -86,28 +93,28 @@ describe("line numbers", () => {
 
   test("resolveActionLines returns line numbers for actions", () => {
     const remove = resolveActionLines(pkg, {
-      type: "removeDependency",
+      name: "@typescript/native-preview",
       packageJsonPath: "package.json",
       section: "devDependencies",
-      name: "@typescript/native-preview",
+      type: "removeDependency",
     });
     expect(remove.minusLine).toBe(3);
 
     const add = resolveActionLines(pkg, {
-      type: "addDependency",
+      name: "typescript",
       packageJsonPath: "package.json",
       section: "devDependencies",
-      name: "typescript",
+      type: "addDependency",
       version: "^7.0.0",
     });
     expect(add.plusLine).toBe(5);
 
     const script = resolveActionLines(pkg, {
-      type: "replaceScriptToken",
+      from: "tsgo --noEmit",
       packageJsonPath: "package.json",
       scriptName: "typecheck",
-      from: "tsgo --noEmit",
       to: "tsc --noEmit",
+      type: "replaceScriptToken",
     });
     expect(script.minusLine).toBe(7);
   });
@@ -129,9 +136,11 @@ describe("highlightChange", () => {
 
 describe("resolveTargetDir", () => {
   test("resolves relative project directories", () => {
-    const target = resolveTargetDir("tests/fixtures/simple-native-preview/input");
-    expect(target.replace(/\\/g, "/")).toEndWith(
-      "tests/fixtures/simple-native-preview/input",
+    const target = resolveTargetDir(
+      "tests/fixtures/simple-native-preview/input"
+    );
+    expect(target.replaceAll("\\", "/")).toEndWith(
+      "tests/fixtures/simple-native-preview/input"
     );
   });
 
@@ -143,31 +152,33 @@ describe("resolveTargetDir", () => {
 describe("replaceTsgoInCommand", () => {
   test("replaces tsgo tokens safely", () => {
     expect(replaceTsgoInCommand("tsgo --noEmit")).toBe("tsc --noEmit");
-    expect(replaceTsgoInCommand("bunx tsgo --noEmit")).toBe("bunx tsc --noEmit");
+    expect(replaceTsgoInCommand("bunx tsgo --noEmit")).toBe(
+      "bunx tsc --noEmit"
+    );
     expect(replaceTsgoInCommand("npx tsgo -p tsconfig.json")).toBe(
-      "npx tsc -p tsconfig.json",
+      "npx tsc -p tsconfig.json"
     );
     expect(replaceTsgoInCommand("tsgo -b")).toBe("tsc -b");
     expect(replaceTsgoInCommand("tsgo --build")).toBe("tsc --build");
     expect(replaceTsgoInCommand("./node_modules/.bin/tsgo --noEmit")).toBe(
-      "./node_modules/.bin/tsc --noEmit",
+      "./node_modules/.bin/tsc --noEmit"
     );
   });
 });
 
 describe("addTscFlags", () => {
   test("adds checkers and builders together for build commands", () => {
-    expect(addTscFlags("tsc -b", { checkers: 4, builders: 2 })).toBe(
-      "tsc --builders 2 --checkers 4 -b",
+    expect(addTscFlags("tsc -b", { builders: 2, checkers: 4 })).toBe(
+      "tsc --builders 2 --checkers 4 -b"
     );
-    expect(addTscFlags("tsc --build", { checkers: 4, builders: 2 })).toBe(
-      "tsc --builders 2 --checkers 4 --build",
+    expect(addTscFlags("tsc --build", { builders: 2, checkers: 4 })).toBe(
+      "tsc --builders 2 --checkers 4 --build"
     );
   });
 
   test("adds checkers alone for non-build commands", () => {
-    expect(addTscFlags("tsc --noEmit", { checkers: 4, builders: 2 })).toBe(
-      "tsc --checkers 4 --noEmit",
+    expect(addTscFlags("tsc --noEmit", { builders: 2, checkers: 4 })).toBe(
+      "tsc --checkers 4 --noEmit"
     );
   });
 });
@@ -184,10 +195,10 @@ describe("github-actions patching", () => {
     await writeFile(
       join(cwd, "package.json"),
       JSON.stringify({
-        name: "ci-fixture",
         devDependencies: { "@typescript/native-preview": "latest" },
+        name: "ci-fixture",
       }),
-      "utf8",
+      "utf-8"
     );
     const workflowDir = join(cwd, ".github", "workflows");
     await mkdir(workflowDir, { recursive: true });
@@ -209,25 +220,21 @@ describe("github-actions patching", () => {
         "          echo done",
         "",
       ].join("\n"),
-      "utf8",
+      "utf-8"
     );
 
-    const ctx = await buildProjectContext(
-      baseOptions(cwd, { updateCi: true }),
-    );
+    const ctx = await buildProjectContext(baseOptions(cwd, { updateCi: true }));
     const actions = await planGithubActions(ctx);
     await applyActions(actions);
-    const actual = await readFile(join(workflowDir, "ci.yml"), "utf8");
+    const actual = await readFile(join(workflowDir, "ci.yml"), "utf-8");
     expect(actual).toContain("run: bunx tsc --noEmit");
     expect(actual).toContain("bunx tsc --noEmit");
     expect(actual).not.toContain("tsgo");
     // setup-bun must be its own step before the owning run step, not mid-block.
     expect(actual).toMatch(
-      /checkout@v4\n\s+- uses: oven-sh\/setup-bun@v1\n\s+- name: Typecheck/u,
+      /checkout@v4\n\s+- uses: oven-sh\/setup-bun@v1\n\s+- name: Typecheck/u
     );
-    expect(actual).toMatch(
-      /run: \|\n\s+bunx tsc --noEmit\n\s+echo done/u,
-    );
+    expect(actual).toMatch(/run: \|\n\s+bunx tsc --noEmit\n\s+echo done/u);
   });
 
   test("inserts setup-bun before bare `-` step list items", async () => {
@@ -235,10 +242,10 @@ describe("github-actions patching", () => {
     await writeFile(
       join(cwd, "package.json"),
       JSON.stringify({
-        name: "ci-fixture",
         devDependencies: { "@typescript/native-preview": "latest" },
+        name: "ci-fixture",
       }),
-      "utf8",
+      "utf-8"
     );
     const workflowDir = join(cwd, ".github", "workflows");
     await mkdir(workflowDir, { recursive: true });
@@ -256,20 +263,18 @@ describe("github-actions patching", () => {
         "        run: bunx tsgo --noEmit",
         "",
       ].join("\n"),
-      "utf8",
+      "utf-8"
     );
 
-    const ctx = await buildProjectContext(
-      baseOptions(cwd, { updateCi: true }),
-    );
+    const ctx = await buildProjectContext(baseOptions(cwd, { updateCi: true }));
     const actions = await planGithubActions(ctx);
     await applyActions(actions);
-    const actual = await readFile(join(workflowDir, "ci.yml"), "utf8");
+    const actual = await readFile(join(workflowDir, "ci.yml"), "utf-8");
     expect(actual).not.toContain("tsgo");
     // Bare `-` must still be recognized as the owning step so setup-bun
     // is a sibling list item, not nested under the step mapping.
     expect(actual).toMatch(
-      /checkout@v4\n\s+- uses: oven-sh\/setup-bun@v1\n\s+-\n\s+run: bunx tsc --noEmit/u,
+      /checkout@v4\n\s+- uses: oven-sh\/setup-bun@v1\n\s+-\n\s+run: bunx tsc --noEmit/u
     );
   });
 });
@@ -278,7 +283,7 @@ describe("include globs", () => {
   test("keeps packages when include only matches source files", async () => {
     const cwd = await copyFixture("simple-native-preview");
     const ctx = await buildProjectContext(
-      baseOptions(cwd, { include: ["src/**/*.ts"] }),
+      baseOptions(cwd, { include: ["src/**/*.ts"] })
     );
     expect(ctx.packages.length).toBeGreaterThan(0);
     expect(ctx.packages.some((p) => p.dir === ".")).toBe(true);
@@ -297,7 +302,7 @@ describe("migration fixtures", () => {
     const { cwd } = await migrateFixture("simple-native-preview");
     const actual = await readJson(join(cwd, "package.json"));
     const expected = await readJson(
-      join(FIXTURES_DIR, "simple-native-preview", "expected", "package.json"),
+      join(FIXTURES_DIR, "simple-native-preview", "expected", "package.json")
     );
     expect(actual).toEqual(expected);
   });
@@ -308,7 +313,7 @@ describe("migration fixtures", () => {
     });
     const actual = await readJson(join(cwd, "package.json"));
     const expected = await readJson(
-      join(FIXTURES_DIR, "nightly-native-preview", "expected", "package.json"),
+      join(FIXTURES_DIR, "nightly-native-preview", "expected", "package.json")
     );
     expect(actual).toEqual(expected);
   });
@@ -318,12 +323,7 @@ describe("migration fixtures", () => {
     expect(plan.mode).toBe("compat-stable");
     const actual = await readJson(join(cwd, "package.json"));
     const expected = await readJson(
-      join(
-        FIXTURES_DIR,
-        "compat-typescript-eslint",
-        "expected",
-        "package.json",
-      ),
+      join(FIXTURES_DIR, "compat-typescript-eslint", "expected", "package.json")
     );
     expect(actual).toEqual(expected);
   });
@@ -333,7 +333,7 @@ describe("migration fixtures", () => {
     expect(plan.mode).toBe("compat-stable");
     const actual = await readJson(join(cwd, "package.json"));
     const expected = await readJson(
-      join(FIXTURES_DIR, "compat-typedoc", "expected", "package.json"),
+      join(FIXTURES_DIR, "compat-typedoc", "expected", "package.json")
     );
     expect(actual).toEqual(expected);
   });
@@ -343,7 +343,7 @@ describe("migration fixtures", () => {
     expect(plan.mode).toBe("compat-stable");
     const actual = await readJson(join(cwd, "package.json"));
     const expected = await readJson(
-      join(FIXTURES_DIR, "compat-api-extractor", "expected", "package.json"),
+      join(FIXTURES_DIR, "compat-api-extractor", "expected", "package.json")
     );
     expect(actual).toEqual(expected);
   });
@@ -353,7 +353,7 @@ describe("migration fixtures", () => {
     expect(plan.mode).toBe("compat-stable");
     const actual = await readJson(join(cwd, "package.json"));
     const expected = await readJson(
-      join(FIXTURES_DIR, "compat-tsdown-dts", "expected", "package.json"),
+      join(FIXTURES_DIR, "compat-tsdown-dts", "expected", "package.json")
     );
     expect(actual).toEqual(expected);
   });
@@ -363,12 +363,7 @@ describe("migration fixtures", () => {
     expect(plan.mode).toBe("compat-stable");
     const actual = await readJson(join(cwd, "package.json"));
     const expected = await readJson(
-      join(
-        FIXTURES_DIR,
-        "source-import-typescript",
-        "expected",
-        "package.json",
-      ),
+      join(FIXTURES_DIR, "source-import-typescript", "expected", "package.json")
     );
     expect(actual).toEqual(expected);
   });
@@ -376,25 +371,30 @@ describe("migration fixtures", () => {
   test("github-actions patches only with --update-ci", async () => {
     const cwd = await copyFixture("github-actions");
     const withoutCi = await buildProjectContext(
-      baseOptions(cwd, { updateCi: false }),
+      baseOptions(cwd, { updateCi: false })
     );
     const planWithout = await createMigrationPlan(withoutCi);
-    expect(
-      planWithout.actions.some((a) => a.type === "patchFile"),
-    ).toBe(false);
+    expect(planWithout.actions.some((a) => a.type === "patchFile")).toBe(false);
 
     const withCi = await buildProjectContext(
-      baseOptions(cwd, { updateCi: true }),
+      baseOptions(cwd, { updateCi: true })
     );
     const planWith = await createMigrationPlan(withCi);
     await applyActions(planWith.actions);
     const actual = await readFile(
       join(cwd, ".github", "workflows", "ci.yml"),
-      "utf8",
+      "utf-8"
     );
     const expected = await readFile(
-      join(FIXTURES_DIR, "github-actions", "expected", ".github", "workflows", "ci.yml"),
-      "utf8",
+      join(
+        FIXTURES_DIR,
+        "github-actions",
+        "expected",
+        ".github",
+        "workflows",
+        "ci.yml"
+      ),
+      "utf-8"
     );
     expect(actual).toBe(expected);
   });
@@ -402,21 +402,25 @@ describe("migration fixtures", () => {
   test("vscode-settings patches only with --update-vscode", async () => {
     const cwd = await copyFixture("vscode-settings");
     const without = await buildProjectContext(
-      baseOptions(cwd, { updateVscode: false }),
+      baseOptions(cwd, { updateVscode: false })
     );
     const planWithout = await createMigrationPlan(without);
-    expect(
-      planWithout.actions.some((a) => a.type === "patchFile"),
-    ).toBe(false);
+    expect(planWithout.actions.some((a) => a.type === "patchFile")).toBe(false);
 
     const withVscode = await buildProjectContext(
-      baseOptions(cwd, { updateVscode: true }),
+      baseOptions(cwd, { updateVscode: true })
     );
     const planWith = await createMigrationPlan(withVscode);
     await applyActions(planWith.actions);
     const actual = await readJson(join(cwd, ".vscode", "settings.json"));
     const expected = await readJson(
-      join(FIXTURES_DIR, "vscode-settings", "expected", ".vscode", "settings.json"),
+      join(
+        FIXTURES_DIR,
+        "vscode-settings",
+        "expected",
+        ".vscode",
+        "settings.json"
+      )
     );
     expect(actual).toEqual(expected);
   });
@@ -434,7 +438,7 @@ describe("migration fixtures", () => {
     ]) {
       const actual = await readJson(join(cwd, rel));
       const expected = await readJson(
-        join(FIXTURES_DIR, "monorepo-bun", "expected", rel),
+        join(FIXTURES_DIR, "monorepo-bun", "expected", rel)
       );
       expect(actual).toEqual(expected);
     }
@@ -445,52 +449,52 @@ describe("migration fixtures", () => {
     const ctx = await buildProjectContext(baseOptions(cwd));
     const plan = await createMigrationPlan(ctx);
     await applyActions(plan.actions);
-    const readme = await readFile(join(cwd, "README.md"), "utf8");
+    const readme = await readFile(join(cwd, "README.md"), "utf-8");
     expect(readme).toContain("tsgo");
   });
 
   test("dry-run does not write files", async () => {
     const cwd = await copyFixture("simple-native-preview");
-    const before = await readFile(join(cwd, "package.json"), "utf8");
+    const before = await readFile(join(cwd, "package.json"), "utf-8");
     const ctx = await buildProjectContext(
-      baseOptions(cwd, { dryRun: true, write: false }),
+      baseOptions(cwd, { dryRun: true, write: false })
     );
     const plan = await createMigrationPlan(ctx);
     expect(plan.actions.length).toBeGreaterThan(0);
-    const after = await readFile(join(cwd, "package.json"), "utf8");
+    const after = await readFile(join(cwd, "package.json"), "utf-8");
     expect(after).toBe(before);
   });
 
   test("rollback restores snapshot", async () => {
     const cwd = await copyFixture("simple-native-preview");
-    const before = await readFile(join(cwd, "package.json"), "utf8");
+    const before = await readFile(join(cwd, "package.json"), "utf-8");
     const ctx = await buildProjectContext(baseOptions(cwd));
     const plan = await createMigrationPlan(ctx);
     const filesToBackup = collectFilesToBackup(plan.actions);
     await createSnapshot(cwd, filesToBackup, {
-      version: "0.1.0",
-      createdAt: new Date().toISOString(),
-      mode: plan.mode,
-      packageManager: ctx.packageManager,
-      filesChanged: [],
       actions: serializeActions(plan.actions),
       commandsRun: [],
+      createdAt: new Date().toISOString(),
+      filesChanged: [],
+      mode: plan.mode,
+      packageManager: ctx.packageManager,
+      version: "0.1.0",
       warnings: [],
     });
     await applyActions(plan.actions);
-    const changed = await readFile(join(cwd, "package.json"), "utf8");
+    const changed = await readFile(join(cwd, "package.json"), "utf-8");
     expect(changed).not.toBe(before);
 
     const snapshotDir = join(
       cwd,
       ".tsgo2tsc",
       "snapshots",
-      (await readFile(join(cwd, ".tsgo2tsc", "latest.json"), "utf8").then(
-        (c) => JSON.parse(c).snapshot,
-      )),
+      await readFile(join(cwd, ".tsgo2tsc", "latest.json"), "utf-8").then(
+        (c) => JSON.parse(c).snapshot
+      )
     );
     await rollbackFromSnapshot(cwd, snapshotDir);
-    const restored = await readFile(join(cwd, "package.json"), "utf8");
+    const restored = await readFile(join(cwd, "package.json"), "utf-8");
     expect(restored).toBe(before);
   });
 
@@ -499,7 +503,7 @@ describe("migration fixtures", () => {
     const ctx = await buildProjectContext(baseOptions(cwd));
     const plan = await createMigrationPlan(ctx);
     const depActions = plan.actions.filter(
-      (a) => a.type === "removeDependency" || a.type === "addDependency",
+      (a) => a.type === "removeDependency" || a.type === "addDependency"
     );
     expect(depActions.length).toBe(0);
   });

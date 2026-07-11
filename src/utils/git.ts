@@ -1,6 +1,5 @@
 import { existsSync } from "node:fs";
-import { join } from "node:path";
+import path from "node:path";
 
-export function isGitRepo(rootDir: string): boolean {
-  return existsSync(join(rootDir, ".git"));
-}
+export const isGitRepo = (rootDir: string): boolean =>
+  existsSync(path.join(rootDir, ".git"));

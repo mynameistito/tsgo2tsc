@@ -24,27 +24,29 @@ export interface CliMigrateOptions {
   cwd?: string;
 }
 
-export function resolveMigrateOptions(opts: CliMigrateOptions): MigrateOptions {
+export const resolveMigrateOptions = (
+  opts: CliMigrateOptions
+): MigrateOptions => {
   const target = resolveTargetDir(opts.cwd ?? opts.dir);
 
   return {
-    nightly: opts.nightly ?? false,
-    stable: opts.stable ?? false,
+    builders: opts.builders,
+    checkers: opts.checkers,
     compat: opts.compat ?? "auto",
-    pm: opts.pm ?? "auto",
+    cwd: target,
     dryRun: opts.dryRun ?? !opts.write,
-    write: opts.write ?? false,
+    exclude: opts.exclude,
+    fixTsconfig: opts.fixTsconfig ?? false,
+    include: opts.include,
     install: opts.install ?? false,
+    nightly: opts.nightly ?? false,
+    pm: opts.pm ?? "auto",
+    stable: opts.stable ?? false,
     test: opts.test ?? false,
     updateCi: opts.updateCi ?? false,
-    updateVscode: opts.updateVscode ?? false,
-    fixTsconfig: opts.fixTsconfig ?? false,
     updateDocs: opts.updateDocs ?? false,
-    checkers: opts.checkers,
-    builders: opts.builders,
-    include: opts.include,
-    exclude: opts.exclude,
+    updateVscode: opts.updateVscode ?? false,
+    write: opts.write ?? false,
     yes: opts.yes ?? false,
-    cwd: target,
   };
-}
+};

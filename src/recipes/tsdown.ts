@@ -1,8 +1,7 @@
-import type { Recipe } from "../types.js";
 import { hasDependency } from "../core/workspace.js";
+import type { Recipe } from "../types.js";
 
 export const tsdownRecipe: Recipe = {
-  name: "tsdown",
   detect(ctx, pkg) {
     const hasTsdown = hasDependency(pkg.packageJson, "tsdown");
     if (!hasTsdown) {
@@ -13,5 +12,8 @@ export const tsdownRecipe: Recipe = {
       reasons: ["found tsdown"],
     };
   },
-  risks: ["tsdown with declaration generation may need TypeScript 6 compiler API"],
+  name: "tsdown",
+  risks: [
+    "tsdown with declaration generation may need TypeScript 6 compiler API",
+  ],
 };

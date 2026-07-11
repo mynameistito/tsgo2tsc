@@ -1,12 +1,15 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
+
 import fg from "fast-glob";
 import YAML from "yaml";
-import { readText } from "../utils/fs.js";
+
 import type { PackageJson, WorkspacePackage } from "../types.js";
+import { readText } from "../utils/fs.js";
+import { sortedStrings } from "../utils/sort.js";
 
 export async function discoverWorkspaces(
-  rootDir: string,
+  rootDir: string
 ): Promise<WorkspacePackage[]> {
   const rootPkgPath = join(rootDir, "package.json");
   const rootContent = await readText(rootPkgPath);
@@ -26,12 +29,12 @@ export async function discoverWorkspaces(
 
   if (patterns.length > 0) {
     const matches = await fg(patterns, {
+      absolute: false,
       cwd: rootDir,
       onlyDirectories: true,
-      absolute: false,
     });
     for (const match of matches) {
-      const normalized = match.replace(/\\/g, "/");
+      const normalized = match.replaceAll("\\", "/");
       if (existsSync(join(rootDir, normalized, "package.json"))) {
         dirs.add(normalized);
       }
@@ -40,17 +43,19 @@ export async function discoverWorkspaces(
 
   const packages: WorkspacePackage[] = [];
 
-  for (const dir of [...dirs].sort()) {
+  for (const dir of sortedStrings([...dirs])) {
     const packageJsonPath =
       dir === "." ? rootPkgPath : join(rootDir, dir, "package.json");
     const content = await readText(packageJsonPath);
-    if (!content) continue;
+    if (!content) {
+      continue;
+    }
 
     try {
       packages.push({
-        dir: dir === "." ? "." : dir.replace(/\\/g, "/"),
-        packageJsonPath,
+        dir: dir === "." ? "." : dir.replaceAll("\\", "/"),
         packageJson: JSON.parse(content) as PackageJson,
+        packageJsonPath,
       });
     } catch {
       // skip invalid package.json and continue scanning
@@ -62,7 +67,7 @@ export async function discoverWorkspaces(
 
 async function getWorkspacePatterns(
   rootDir: string,
-  rootPkg: PackageJson,
+  rootPkg: PackageJson
 ): Promise<string[]> {
   if (rootPkg.workspaces) {
     if (Array.isArray(rootPkg.workspaces)) {
@@ -86,7 +91,9 @@ async function getWorkspacePatterns(
 
 async function readPnpmWorkspaces(path: string): Promise<string[]> {
   const content = await readText(path);
-  if (!content) return [];
+  if (!content) {
+    return [];
+  }
   try {
     const doc = YAML.parse(content) as { packages?: string[] };
     return doc.packages ?? [];
@@ -97,10 +104,10 @@ async function readPnpmWorkspaces(path: string): Promise<string[]> {
 
 export function getAllDependencies(pkg: PackageJson): Record<string, string> {
   return {
-    ...(pkg.dependencies ?? {}),
-    ...(pkg.devDependencies ?? {}),
-    ...(pkg.peerDependencies ?? {}),
-    ...(pkg.optionalDependencies ?? {}),
+    ...pkg.dependencies,
+    ...pkg.devDependencies,
+    ...pkg.peerDependencies,
+    ...pkg.optionalDependencies,
   };
 }
 
@@ -110,11 +117,24 @@ export function hasDependency(pkg: PackageJson, name: string): boolean {
 
 export function findDependencySection(
   pkg: PackageJson,
-  name: string,
-): "dependencies" | "devDependencies" | "peerDependencies" | "optionalDependencies" | null {
-  if (pkg.dependencies && name in pkg.dependencies) return "dependencies";
-  if (pkg.devDependencies && name in pkg.devDependencies) return "devDependencies";
-  if (pkg.peerDependencies && name in pkg.peerDependencies) return "peerDependencies";
-  if (pkg.optionalDependencies && name in pkg.optionalDependencies) return "optionalDependencies";
+  name: string
+):
+  | "dependencies"
+  | "devDependencies"
+  | "peerDependencies"
+  | "optionalDependencies"
+  | null {
+  if (pkg.dependencies && name in pkg.dependencies) {
+    return "dependencies";
+  }
+  if (pkg.devDependencies && name in pkg.devDependencies) {
+    return "devDependencies";
+  }
+  if (pkg.peerDependencies && name in pkg.peerDependencies) {
+    return "peerDependencies";
+  }
+  if (pkg.optionalDependencies && name in pkg.optionalDependencies) {
+    return "optionalDependencies";
+  }
   return null;
 }

@@ -2,17 +2,17 @@ import { buildProjectContext } from "../core/context.js";
 import { createMigrationPlan } from "../core/planner.js";
 import { formatScanOutput } from "../core/report.js";
 import {
-  formatNativePreviewFinding,
-  scanNativePreviewUsage,
-} from "../scanners/native-preview.js";
-import {
   formatTargetVersions,
   resolveMigrationTargetVersions,
 } from "../core/versions.js";
-import { log } from "../utils/logger.js";
+import {
+  formatNativePreviewFinding,
+  scanNativePreviewUsage,
+} from "../scanners/native-preview.js";
 import type { MigrateOptions } from "../types.js";
+import { log } from "../utils/logger.js";
 
-export async function runScan(options: MigrateOptions): Promise<void> {
+export const runScan = async (options: MigrateOptions): Promise<void> => {
   const ctx = await buildProjectContext(options);
   const plan = await createMigrationPlan(ctx);
   const findings = await scanNativePreviewUsage(ctx);
@@ -34,8 +34,8 @@ export async function runScan(options: MigrateOptions): Promise<void> {
     formatScanOutput(
       ctx.packageManager,
       ctx.packages.map((p) => p.dir),
-      plan,
-    ),
+      plan
+    )
   );
 
   const targetVersions = await resolveMigrationTargetVersions(plan.mode);
@@ -53,4 +53,4 @@ export async function runScan(options: MigrateOptions): Promise<void> {
       log.dim(`  - ${reason}`);
     }
   }
-}
+};

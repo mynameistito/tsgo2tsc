@@ -3,14 +3,18 @@ import type { PackageJson, WorkspacePackage } from "../types.js";
 
 const NATIVE_PREVIEW = "@typescript/native-preview";
 
-export function scanPackageJson(pkg: WorkspacePackage): {
+export const hasTsgoInvocation = (command: string): boolean =>
+  /(?<prefix>^|[;&|({}\s"'/])(?:bunx|npx|pnpm|yarn)\s+tsgo(?=$|[\s;&|)"'])/u.test(command) ||
+  /(?<prefix>^|[;&|({}\s"'/])tsgo(?=$|[\s;&|)"'])/u.test(command);
+
+export const scanPackageJson = (pkg: WorkspacePackage): {
   hasNativePreview: boolean;
   hasTsgoScript: boolean;
-  scripts: Array<{ name: string; value: string }>;
-} {
+  scripts: { name: string; value: string }[];
+} => {
   const deps = getAllDependencies(pkg.packageJson);
   const hasNativePreview = NATIVE_PREVIEW in deps;
-  const scripts: Array<{ name: string; value: string }> = [];
+  const scripts: { name: string; value: string }[] = [];
   let hasTsgoScript = false;
 
   for (const [name, value] of Object.entries(pkg.packageJson.scripts ?? {})) {
@@ -21,15 +25,12 @@ export function scanPackageJson(pkg: WorkspacePackage): {
   }
 
   return { hasNativePreview, hasTsgoScript, scripts };
-}
+};
 
-export function hasNativePreviewInAny(
-  packages: WorkspacePackage[],
-): WorkspacePackage[] {
-  return packages.filter((pkg) =>
-    hasDependency(pkg.packageJson, NATIVE_PREVIEW),
-  );
-}
+export const hasNativePreviewInAny = (
+  packages: WorkspacePackage[]
+): WorkspacePackage[] =>
+  packages.filter((pkg) => hasDependency(pkg.packageJson, NATIVE_PREVIEW));
 
 export const COMPAT_DEPENDENCIES = [
   "typescript-eslint",
@@ -52,12 +53,7 @@ export const COMPAT_DEPENDENCIES = [
   "eslint-import-resolver-typescript",
 ] as const;
 
-export function hasTsgoInvocation(command: string): boolean {
-  return /(^|[;&|({}\s"'/])(?:bunx|npx|pnpm|yarn)\s+tsgo(?=$|[\s;&|)"'])/u.test(command) ||
-    /(^|[;&|({}\s"'/])tsgo(?=$|[\s;&|)"'])/u.test(command);
-}
-
-export function detectCompatDependencies(pkg: PackageJson): string[] {
+export const detectCompatDependencies = (pkg: PackageJson): string[] => {
   const deps = getAllDependencies(pkg);
   const found: string[] = [];
 
@@ -74,4 +70,4 @@ export function detectCompatDependencies(pkg: PackageJson): string[] {
   }
 
   return found;
-}
+};

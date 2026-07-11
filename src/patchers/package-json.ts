@@ -1,37 +1,39 @@
-import { sortPackageJsonKeys } from "../utils/sort-package-json.js";
 import type { DependencySection, PackageJson } from "../types.js";
+import { sortPackageJsonKeys } from "../utils/sort-package-json.js";
 
-export function patchPackageJsonContent(
+export const patchPackageJsonContent = (
   content: string,
-  mutator: (pkg: PackageJson) => void,
-): string {
+  mutator: (pkg: PackageJson) => void
+): string => {
   const pkg = JSON.parse(content) as PackageJson;
   mutator(pkg);
   const sorted = sortPackageJsonKeys(pkg as Record<string, unknown>);
   return `${JSON.stringify(sorted, null, 2)}\n`;
-}
+};
 
-export function removeDependency(
+export const removeDependency = (
   pkg: PackageJson,
   section: DependencySection,
-  name: string,
-): boolean {
+  name: string
+): boolean => {
   const deps = pkg[section] as Record<string, string> | undefined;
-  if (!deps || !(name in deps)) return false;
-  delete deps[name];
+  if (!deps || !(name in deps)) {
+    return false;
+  }
+  Reflect.deleteProperty(deps, name);
   if (Object.keys(deps).length === 0) {
-    delete pkg[section];
+    Reflect.deleteProperty(pkg, section);
   }
   return true;
-}
+};
 
-export function addDependency(
+export const addDependency = (
   pkg: PackageJson,
   section: DependencySection,
   name: string,
-  version: string,
-): void {
+  version: string
+): void => {
   const deps = (pkg[section] as Record<string, string> | undefined) ?? {};
   deps[name] = version;
   pkg[section] = deps;
-}
+};

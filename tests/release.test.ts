@@ -1,9 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import {
-  extractReleaseNotes,
-  runNpmRelease,
-  type CommandResult,
-} from "../scripts/publish.js";
+
+import { extractReleaseNotes, runNpmRelease } from "../scripts/publish.js";
+import type { CommandResult } from "../scripts/publish.js";
 
 const result = (exitCode: number, stdout = "", stderr = ""): CommandResult => ({
   exitCode,
@@ -30,10 +28,13 @@ describe("release helpers", () => {
     const calls: string[][] = [];
 
     await expect(
-      runNpmRelease(async (command, args) => {
-        calls.push([command, ...args]);
-        return result(1, "", "npm error code E401");
-      }, { name: "example", version: "1.0.0" })
+      runNpmRelease(
+        async (command, args) => {
+          calls.push([command, ...args]);
+          return result(1, "", "npm error code E401");
+        },
+        { name: "example", version: "1.0.0" }
+      )
     ).rejects.toThrow("npm view failed");
 
     expect(calls).toHaveLength(1);
@@ -47,10 +48,13 @@ describe("release helpers", () => {
       result(0, "staged"),
     ];
 
-    await runNpmRelease(async (command, args) => {
-      calls.push([command, ...args]);
-      return responses.shift() ?? result(1, "", "unexpected call");
-    }, { name: "example", version: "1.0.0" });
+    await runNpmRelease(
+      async (command, args) => {
+        calls.push([command, ...args]);
+        return responses.shift() ?? result(1, "", "unexpected call");
+      },
+      { name: "example", version: "1.0.0" }
+    );
 
     expect(calls[2]).toEqual(["npm", "stage", "publish", "."]);
   });

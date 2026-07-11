@@ -1,7 +1,10 @@
 import { confirm } from "@clack/prompts";
-import { buildProjectContext } from "../core/context.js";
-import { createMigrationPlan } from "../core/planner.js";
+
 import { applyActions } from "../core/apply.js";
+import { buildProjectContext } from "../core/context.js";
+import { printDryRunOutput } from "../core/dry-run.js";
+import { createMigrationPlan } from "../core/planner.js";
+import { writeReport, writeSnapshotReport } from "../core/report.js";
 import {
   collectFilesToBackup,
   createSnapshot,
@@ -9,16 +12,11 @@ import {
   serializeActions,
   writeMigrationRecord,
 } from "../core/snapshot.js";
-import {
-  writeReport,
-  writeSnapshotReport,
-} from "../core/report.js";
-import { printDryRunOutput } from "../core/dry-run.js";
 import { runVerification } from "../core/verify.js";
 import { hasNativePreviewInAny } from "../scanners/package-json.js";
+import type { MigrateOptions, MigrationRecord } from "../types.js";
 import { relativePath } from "../utils/fs.js";
 import { log } from "../utils/logger.js";
-import type { MigrateOptions, MigrationRecord } from "../types.js";
 
 const PACKAGE_VERSION = "0.1.0";
 
@@ -28,7 +26,9 @@ export async function runMigrate(options: MigrateOptions): Promise<void> {
   const nativePreviewPkgs = hasNativePreviewInAny(ctx.packages);
 
   if (nativePreviewPkgs.length === 0 && plan.actions.length === 0) {
-    log.warn("Nothing to migrate. No @typescript/native-preview or tsgo usage found.");
+    log.warn(
+      "Nothing to migrate. No @typescript/native-preview or tsgo usage found."
+    );
     return;
   }
 
@@ -37,7 +37,7 @@ export async function runMigrate(options: MigrateOptions): Promise<void> {
       plan,
       [...plan.actions, ...plan.warnings],
       nativePreviewPkgs.length,
-      ctx.rootDir,
+      ctx.rootDir
     );
     return;
   }
@@ -56,43 +56,39 @@ export async function runMigrate(options: MigrateOptions): Promise<void> {
   const createdAt = new Date().toISOString();
 
   const record: MigrationRecord = {
-    version: PACKAGE_VERSION,
-    createdAt,
-    mode: plan.mode,
-    packageManager: ctx.packageManager,
-    filesChanged: [],
     actions: serializeActions(plan.actions),
     commandsRun: [],
+    createdAt,
+    filesChanged: [],
+    mode: plan.mode,
+    packageManager: ctx.packageManager,
+    version: PACKAGE_VERSION,
     warnings: plan.warnings
       .filter((a) => a.type === "warn")
       .map((a) => (a.type === "warn" ? a.message : "")),
   };
 
-  const snapshotDir = await createSnapshot(
-    ctx.rootDir,
-    filesToBackup,
-    record,
-  );
+  const snapshotDir = await createSnapshot(ctx.rootDir, filesToBackup, record);
 
   let filesChanged: string[];
   try {
     filesChanged = await applyActions(plan.actions);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
     try {
       await rollbackFromSnapshot(ctx.rootDir, snapshotDir);
-      log.error(`Migration failed during apply; rolled back snapshot. ${message}`);
+      log.error(
+        `Migration failed during apply; rolled back snapshot. ${message}`
+      );
     } catch {
       log.error(
-        `Migration failed during apply: ${message}. Run \`tsgo2tsc rollback\` to restore from the snapshot.`,
+        `Migration failed during apply: ${message}. Run \`tsgo2tsc rollback\` to restore from the snapshot.`
       );
     }
     process.exitCode = 1;
     return;
   }
-  record.filesChanged = filesChanged.map((f) =>
-    relativePath(ctx.rootDir, f),
-  );
+  record.filesChanged = filesChanged.map((f) => relativePath(ctx.rootDir, f));
 
   if (options.install || options.test) {
     const verification = await runVerification(
@@ -100,7 +96,7 @@ export async function runMigrate(options: MigrateOptions): Promise<void> {
       ctx.packageManager,
       ctx.packages,
       plan.mode,
-      { install: options.install, test: options.test },
+      { install: options.install, test: options.test }
     );
     record.commandsRun = verification.commandsRun;
     record.verification = verification.results;
@@ -112,11 +108,10 @@ export async function runMigrate(options: MigrateOptions): Promise<void> {
 
   log.success(`Migration applied (${plan.mode}).`);
   log.info(`Changed ${record.filesChanged.length} file(s).`);
-  log.dim(`Snapshot: .tsgo2tsc/snapshots/${createdAt.replace(/:/g, "-")}`);
+  log.dim(`Snapshot: .tsgo2tsc/snapshots/${createdAt.replaceAll(":", "-")}`);
   log.dim("Report: .tsgo2tsc/report.md");
 
-  const failedChecks =
-    record.verification?.filter((v) => !v.success) ?? [];
+  const failedChecks = record.verification?.filter((v) => !v.success) ?? [];
   if (failedChecks.length > 0) {
     log.warn("Migration applied with failing checks:");
     for (const check of failedChecks) {

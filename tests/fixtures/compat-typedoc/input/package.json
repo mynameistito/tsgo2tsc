@@ -1,9 +1,9 @@
 {
+  "scripts": {
+    "typecheck": "tsgo --noEmit"
+  },
   "devDependencies": {
     "@typescript/native-preview": "^7.0.0-dev.20260627.2",
     "typedoc": "^0.28.0"
-  },
-  "scripts": {
-    "typecheck": "tsgo --noEmit"
   }
 }

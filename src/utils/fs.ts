@@ -1,36 +1,39 @@
 import { mkdir, readFile, writeFile, cp, rm } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import path from "node:path";
 
-export async function readText(path: string): Promise<string | null> {
+const isNodeError = (error: unknown): error is NodeJS.ErrnoException =>
+  error instanceof Error && "code" in error;
+
+export const readText = async (filePath: string): Promise<string | null> => {
   try {
-    return await readFile(path, "utf8");
+    return await readFile(filePath, "utf-8");
   } catch (error) {
     if (isNodeError(error) && error.code === "ENOENT") {
       return null;
     }
     throw error;
   }
-}
+};
 
-function isNodeError(error: unknown): error is NodeJS.ErrnoException {
-  return error instanceof Error && "code" in error;
-}
-export async function writeText(path: string, content: string): Promise<void> {
-  await mkdir(dirname(path), { recursive: true });
-  await writeFile(path, content, "utf8");
-}
+export const writeText = async (
+  filePath: string,
+  content: string
+): Promise<void> => {
+  await mkdir(path.dirname(filePath), { recursive: true });
+  await writeFile(filePath, content, "utf-8");
+};
 
-export async function copyDir(src: string, dest: string): Promise<void> {
-  await cp(src, dest, { recursive: true, force: true });
-}
+export const copyDir = async (src: string, dest: string): Promise<void> => {
+  await cp(src, dest, { force: true, recursive: true });
+};
 
-export async function removeDir(path: string): Promise<void> {
-  await rm(path, { recursive: true, force: true });
-}
+export const removeDir = async (filePath: string): Promise<void> => {
+  await rm(filePath, { force: true, recursive: true });
+};
 
-export function relativePath(root: string, file: string): string {
-  const normalized = file.replace(/\\/g, "/");
-  const rootNorm = root.replace(/\\/g, "/").replace(/\/$/, "");
+export const relativePath = (root: string, file: string): string => {
+  const normalized = file.replaceAll("\\", "/");
+  const rootNorm = root.replaceAll("\\", "/").replace(/\/$/u, "");
   if (normalized === rootNorm) {
     return ".";
   }
@@ -39,8 +42,6 @@ export function relativePath(root: string, file: string): string {
     return normalized.slice(rootPrefix.length) || ".";
   }
   return normalized;
-}
+};
 
-export function joinPath(...parts: string[]): string {
-  return join(...parts);
-}
+export const joinPath = (...parts: string[]): string => path.join(...parts);

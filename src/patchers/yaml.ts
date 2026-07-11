@@ -1,9 +1,12 @@
 import YAML from "yaml";
 
-export function patchYaml(
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+export const patchYaml = (
   content: string,
-  mutator: (doc: Record<string, unknown>) => void,
-): string {
+  mutator: (doc: Record<string, unknown>) => void
+): string => {
   // This object-level API does not preserve YAML comments. Use a document-level
   // patcher for comment-sensitive files.
   const parsed = YAML.parse(content) as unknown;
@@ -12,8 +15,4 @@ export function patchYaml(
   }
   mutator(parsed);
   return YAML.stringify(parsed);
-}
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
+};

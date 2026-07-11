@@ -1,24 +1,27 @@
 import pc from "picocolors";
-import { readText } from "../utils/fs.js";
-import { relativePath } from "../utils/fs.js";
-import { groupActionsByFile } from "./planner.js";
+
+import type { MigrationAction, MigrationPlan } from "../types.js";
+import { readText, relativePath } from "../utils/fs.js";
 import {
   formatAddedDependencyLine,
   getLineContent,
   resolveActionLines,
 } from "./line-numbers.js";
+import { groupActionsByFile } from "./planner.js";
 import {
   formatTargetVersions,
   resolveMigrationTargetVersions,
 } from "./versions.js";
-import type { MigrationAction, MigrationPlan } from "../types.js";
+
 export function highlightChange(
   from: string,
-  to: string,
+  to: string
 ): { minus: string; plus: string } {
   let start = 0;
   const max = Math.min(from.length, to.length);
-  while (start < max && from[start] === to[start]) start++;
+  while (start < max && from[start] === to[start]) {
+    start++;
+  }
 
   while (
     start > 0 &&
@@ -51,7 +54,9 @@ export function highlightChange(
 }
 
 function lineTag(line: number | undefined): string {
-  if (!line) return pc.dim("L?  ");
+  if (!line) {
+    return pc.dim("L?  ");
+  }
   return pc.dim(`L${String(line).padEnd(3)}`);
 }
 
@@ -68,15 +73,17 @@ function printScriptChange(
   scriptName: string,
   from: string,
   to: string,
-  line: number | undefined,
+  line: number | undefined
 ): void {
   const rawLine =
-    line !== undefined ? getLineContent(content, line) : `"${scriptName}": "${from}"`;
+    line === undefined
+      ? `"${scriptName}": "${from}"`
+      : getLineContent(content, line);
   const { minus, plus } = highlightChange(
     rawLine.includes(scriptName) ? rawLine : `"${scriptName}": "${from}"`,
     rawLine.includes(scriptName)
       ? rawLine.replace(from, to)
-      : `"${scriptName}": "${to}"`,
+      : `"${scriptName}": "${to}"`
   );
   printMinusLine(line, minus);
   printPlusLine(line, plus);
@@ -86,11 +93,11 @@ function printPatchChange(
   content: string,
   action: Extract<MigrationAction, { type: "patchFile" }>,
   description: string,
-  line: number | undefined,
+  line: number | undefined
 ): void {
-  const raw = line !== undefined ? getLineContent(content, line) : description;
+  const raw = line === undefined ? description : getLineContent(content, line);
   const patched = action.apply(content);
-  const patchedRaw = line !== undefined ? getLineContent(patched, line) : "";
+  const patchedRaw = line === undefined ? "" : getLineContent(patched, line);
   printMinusLine(line, pc.yellow(raw || description));
   if (patchedRaw && patchedRaw !== raw) {
     printPlusLine(line, pc.green(patchedRaw));
@@ -103,54 +110,55 @@ function printPatchChange(
 
 function printWarning(message: string, severity: string): void {
   const color =
-    severity === "error" ? pc.red : severity === "warning" ? pc.yellow : pc.dim;
+    severity === "error" ? pc.red : (severity === "warning" ? pc.yellow : pc.dim);
   console.log(`  ${pc.dim("L?  ")} ${color("!")} ${color(message)}`);
 }
 
 function formatFilePath(file: string, rootDir: string): string {
-  const rel = relativePath(rootDir, file).replace(/\\/g, "/");
-  return rel || file.replace(/\\/g, "/");
+  const rel = relativePath(rootDir, file).replaceAll("\\", "/");
+  return rel || file.replaceAll("\\", "/");
 }
 
-function printFileAction(
-  content: string,
-  action: MigrationAction,
-): void {
+function printFileAction(content: string, action: MigrationAction): void {
   const { minusLine, plusLine } = resolveActionLines(content, action);
 
   switch (action.type) {
     case "removeDependency": {
       const raw =
-        minusLine !== undefined
-          ? getLineContent(content, minusLine)
-          : `${action.section} ${action.name}`;
+        minusLine === undefined
+          ? `${action.section} ${action.name}`
+          : getLineContent(content, minusLine);
       printMinusLine(minusLine, pc.red(raw));
       break;
     }
     case "addDependency": {
       const existing =
-        plusLine !== undefined
-          ? getLineContent(content, plusLine)
-          : null;
-      const raw =
-        existing?.includes(`"${action.name}"`)
-          ? existing
-          : formatAddedDependencyLine(action.name, action.version);
+        plusLine === undefined ? null : getLineContent(content, plusLine);
+      const raw = existing?.includes(`"${action.name}"`)
+        ? existing
+        : formatAddedDependencyLine(action.name, action.version);
       printPlusLine(plusLine, pc.green(raw));
       break;
     }
-    case "replaceScriptToken":
+    case "replaceScriptToken": {
       printScriptChange(
         content,
         action.scriptName,
         action.from,
         action.to,
-        minusLine ?? plusLine,
+        minusLine ?? plusLine
       );
       break;
-    case "patchFile":
-      printPatchChange(content, action, action.description, minusLine ?? plusLine);
+    }
+    case "patchFile": {
+      printPatchChange(
+        content,
+        action,
+        action.description,
+        minusLine ?? plusLine
+      );
       break;
+    }
   }
 }
 
@@ -158,7 +166,7 @@ export async function printDryRunOutput(
   plan: MigrationPlan,
   actions: MigrationAction[],
   nativePreviewCount: number,
-  rootDir: string,
+  rootDir: string
 ): Promise<void> {
   const grouped = groupActionsByFile(actions);
   const warnings = actions.filter((a) => a.type === "warn");
@@ -174,8 +182,8 @@ export async function printDryRunOutput(
   if (nativePreviewCount > 0) {
     console.log(
       pc.dim(
-        `Found ${pc.white("@typescript/native-preview")} in ${nativePreviewCount} package${nativePreviewCount === 1 ? "" : "s"}.`,
-      ),
+        `Found ${pc.white("@typescript/native-preview")} in ${nativePreviewCount} package${nativePreviewCount === 1 ? "" : "s"}.`
+      )
     );
     console.log();
   }
@@ -233,6 +241,6 @@ export async function printDryRunOutput(
   console.log(
     pc.dim("No files changed. Run again with ") +
       pc.white("--write") +
-      pc.dim(" to apply."),
+      pc.dim(" to apply.")
   );
 }

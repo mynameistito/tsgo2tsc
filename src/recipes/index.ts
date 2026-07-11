@@ -1,8 +1,4 @@
 import type { Recipe } from "../types.js";
-import { nativePreviewRecipe } from "./native-preview.js";
-import { typescriptEslintRecipe } from "./typescript-eslint.js";
-import { tsdownRecipe } from "./tsdown.js";
-import { typedocRecipe } from "./typedoc.js";
 import { apiExtractorRecipe } from "./api-extractor.js";
 import {
   eslintImportResolverRecipe,
@@ -12,6 +8,10 @@ import {
   angularRecipe,
   mdxRecipe,
 } from "./embedded-languages.js";
+import { nativePreviewRecipe } from "./native-preview.js";
+import { tsdownRecipe } from "./tsdown.js";
+import { typedocRecipe } from "./typedoc.js";
+import { typescriptEslintRecipe } from "./typescript-eslint.js";
 import { vscodeRecipe } from "./vscode.js";
 
 export const allRecipes: Recipe[] = [

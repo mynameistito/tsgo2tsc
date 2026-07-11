@@ -1,8 +1,7 @@
-import type { Recipe } from "../types.js";
 import { hasDependency } from "../core/workspace.js";
+import type { Recipe } from "../types.js";
 
 export const typedocRecipe: Recipe = {
-  name: "typedoc",
   detect(_ctx, pkg) {
     const found = hasDependency(pkg.packageJson, "typedoc");
     return {
@@ -10,5 +9,6 @@ export const typedocRecipe: Recipe = {
       reasons: found ? ["found typedoc"] : [],
     };
   },
+  name: "typedoc",
   risks: ["typedoc may need TypeScript 6 compiler API"],
 };

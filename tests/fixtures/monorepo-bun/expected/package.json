@@ -3,10 +3,10 @@
   "workspaces": [
     "packages/*"
   ],
-  "devDependencies": {
-    "typescript": "^7.0.0"
-  },
   "scripts": {
     "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.0"
   }
 }

@@ -1,3 +1,5 @@
+import { sortedStrings } from "./sort.js";
+
 const TOP_KEYS = [
   "name",
   "version",
@@ -18,28 +20,7 @@ const TOP_KEYS = [
   "workspaces",
 ];
 
-export function sortPackageJsonKeys(
-  pkg: Record<string, unknown>,
-): Record<string, unknown> {
-  const sorted: Record<string, unknown> = {};
-  const keys = Object.keys(pkg);
-
-  for (const key of TOP_KEYS) {
-    if (key in pkg) {
-      sorted[key] = sortSection(key, pkg[key]);
-    }
-  }
-
-  for (const key of keys.sort()) {
-    if (!(key in sorted)) {
-      sorted[key] = sortSection(key, pkg[key]);
-    }
-  }
-
-  return sorted;
-}
-
-function sortSection(key: string, value: unknown): unknown {
+const sortSection = (key: string, value: unknown): unknown => {
   if (
     (key === "dependencies" ||
       key === "devDependencies" ||
@@ -50,10 +31,34 @@ function sortSection(key: string, value: unknown): unknown {
   ) {
     const record = value as Record<string, string>;
     const sorted: Record<string, string> = {};
-    for (const k of Object.keys(record).sort()) {
-      sorted[k] = record[k]!;
+    for (const packageName of sortedStrings(Object.keys(record))) {
+      const version = record[packageName];
+      if (version !== undefined) {
+        sorted[packageName] = version;
+      }
     }
     return sorted;
   }
   return value;
-}
+};
+
+export const sortPackageJsonKeys = (
+  pkg: Record<string, unknown>
+): Record<string, unknown> => {
+  const sorted: Record<string, unknown> = {};
+  const keys = Object.keys(pkg);
+
+  for (const key of TOP_KEYS) {
+    if (key in pkg) {
+      sorted[key] = sortSection(key, pkg[key]);
+    }
+  }
+
+  for (const key of sortedStrings(keys)) {
+    if (!(key in sorted)) {
+      sorted[key] = sortSection(key, pkg[key]);
+    }
+  }
+
+  return sorted;
+};

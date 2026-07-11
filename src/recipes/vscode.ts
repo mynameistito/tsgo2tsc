@@ -1,7 +1,8 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { scanVscodeSettings } from "../scanners/vscode.js";
+
 import { patchJsonSettings, parseJsonc } from "../patchers/jsonc.js";
+import { scanVscodeSettings } from "../scanners/vscode.js";
 import type {
   MigrationAction,
   MigrationMode,
@@ -10,16 +11,16 @@ import type {
 } from "../types.js";
 
 export const vscodeRecipe: Recipe = {
-  name: "vscode",
   detect(ctx) {
     try {
       return detectVscodeContent(
-        readFileSync(join(ctx.rootDir, ".vscode", "settings.json"), "utf8"),
+        readFileSync(join(ctx.rootDir, ".vscode", "settings.json"), "utf-8")
       );
     } catch {
       return { detected: false, reasons: [] };
     }
   },
+  name: "vscode",
 };
 
 function detectVscodeContent(content: string): {
@@ -43,16 +44,20 @@ function detectVscodeSettings(settings: Record<string, unknown>): {
   }
   const tsdk = settings["typescript.tsdk"];
   if (typeof tsdk === "string" && tsdk.includes("@typescript/native-preview")) {
-    reasons.push("found typescript.tsdk pointing at @typescript/native-preview");
+    reasons.push(
+      "found typescript.tsdk pointing at @typescript/native-preview"
+    );
   }
   return { detected: reasons.length > 0, reasons };
 }
 
 export async function planVscodeActions(
   ctx: ProjectContext,
-  mode: MigrationMode,
+  mode: MigrationMode
 ): Promise<MigrationAction[]> {
-  if (!ctx.updateVscode) return [];
+  if (!ctx.updateVscode) {
+    return [];
+  }
 
   const scan = await scanVscodeSettings(ctx);
   if (!scan || (!scan.hasUseTsgo && !scan.hasNativePreviewTsdk)) {
@@ -62,16 +67,12 @@ export async function planVscodeActions(
   const description =
     scan.hasUseTsgo && scan.hasNativePreviewTsdk
       ? "remove js/ts.experimental.useTsgo and update typescript.tsdk"
-      : scan.hasUseTsgo
+      : (scan.hasUseTsgo
         ? "remove js/ts.experimental.useTsgo"
-        : "update typescript.tsdk";
+        : "update typescript.tsdk");
 
   return [
     {
-      type: "patchFile",
-      path: scan.file,
-      description,
-      searchHint: scan.hasUseTsgo ? "useTsgo" : "typescript.tsdk",
       apply(content: string) {
         return patchJsonSettings(content, (settings) => {
           if (scan.hasUseTsgo) {
@@ -84,6 +85,10 @@ export async function planVscodeActions(
           }
         });
       },
+      description,
+      path: scan.file,
+      searchHint: scan.hasUseTsgo ? "useTsgo" : "typescript.tsdk",
+      type: "patchFile",
     },
   ];
 }
