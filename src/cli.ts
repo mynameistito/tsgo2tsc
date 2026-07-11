@@ -18,7 +18,10 @@ program
   )
   .version("0.1.0");
 
-const collect = (value: string, previous: string[]): string[] => [...previous, value];
+const collect = (value: string, previous: string[]): string[] => [
+  ...previous,
+  value,
+];
 
 const parseChoice = <T extends string>(
   value: string,
@@ -65,8 +68,7 @@ const sharedOptions = (cmd: Command): Command =>
     );
 
 const parseIntOption = (value: string): number => {
-  const parsed = Number.parseInt(value, 10);
-  if (Number.isNaN(parsed)) {
+  if (!/^[+-]?\d+$/u.test(value)) {
     throw new TypeError(`Invalid number: ${value}`);
   }
   return Math.trunc(Number(value));
@@ -75,29 +77,27 @@ const parseIntOption = (value: string): number => {
 const toOptions = (
   dir: string,
   opts: Record<string, unknown>
-): CliMigrateOptions => {
-  return {
-    builders: opts.builders as number | undefined,
-    checkers: opts.checkers as number | undefined,
-    compat: opts.compat as CliMigrateOptions["compat"],
-    cwd: opts.cwd as string | undefined,
-    dir,
-    dryRun: opts.dryRun as boolean | undefined,
-    exclude: opts.exclude as string[] | undefined,
-    fixTsconfig: Boolean(opts.fixTsconfig),
-    include: opts.include as string[] | undefined,
-    install: Boolean(opts.install),
-    nightly: Boolean(opts.nightly),
-    pm: opts.pm as CliMigrateOptions["pm"],
-    stable: Boolean(opts.stable),
-    test: Boolean(opts.test),
-    updateCi: Boolean(opts.updateCi),
-    updateDocs: Boolean(opts.updateDocs),
-    updateVscode: Boolean(opts.updateVscode),
-    write: opts.write as boolean | undefined,
-    yes: Boolean(opts.yes),
-  };
-};
+): CliMigrateOptions => ({
+  builders: opts.builders as number | undefined,
+  checkers: opts.checkers as number | undefined,
+  compat: opts.compat as CliMigrateOptions["compat"],
+  cwd: opts.cwd as string | undefined,
+  dir,
+  dryRun: opts.dryRun as boolean | undefined,
+  exclude: opts.exclude as string[] | undefined,
+  fixTsconfig: Boolean(opts.fixTsconfig),
+  include: opts.include as string[] | undefined,
+  install: Boolean(opts.install),
+  nightly: Boolean(opts.nightly),
+  pm: opts.pm as CliMigrateOptions["pm"],
+  stable: Boolean(opts.stable),
+  test: Boolean(opts.test),
+  updateCi: Boolean(opts.updateCi),
+  updateDocs: Boolean(opts.updateDocs),
+  updateVscode: Boolean(opts.updateVscode),
+  write: opts.write as boolean | undefined,
+  yes: Boolean(opts.yes),
+});
 
 sharedOptions(
   program

@@ -5,10 +5,7 @@ export const parseJsonc = <T>(content: string): T => {
   const errors: ParseError[] = [];
   const result = parse(content, errors, { allowTrailingComma: true });
   if (errors.length > 0) {
-    const [first] = errors;
-    if (!first) {
-      throw new Error("Invalid JSONC: unknown parse error");
-    }
+    const first = errors[0] as ParseError;
     throw new Error(
       `Invalid JSONC at offset ${first.offset}: ${printParseErrorCode(first.error)}`
     );
