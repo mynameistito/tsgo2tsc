@@ -3,9 +3,9 @@ import { scanProjectFiles } from "../utils/glob.js";
 import { resolvePackageManager } from "./package-manager.js";
 import { discoverWorkspaces } from "./workspace.js";
 
-export async function buildProjectContext(
+export const buildProjectContext = async (
   options: MigrateOptions
-): Promise<ProjectContext> {
+): Promise<ProjectContext> => {
   const packageManager = resolvePackageManager(options.cwd, options.pm);
   const files = await scanProjectFiles(
     options.cwd,
@@ -32,4 +32,4 @@ export async function buildProjectContext(
     updateDocs: options.updateDocs,
     updateVscode: options.updateVscode,
   };
-}
+};

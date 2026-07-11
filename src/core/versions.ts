@@ -17,15 +17,15 @@ export interface MigrationTargetVersions {
 const FALLBACK_STABLE = "^7.0.0";
 const FALLBACK_TYPESCRIPT6 = "^6.0.0";
 
-function matchingMajor(
+const matchingMajor = (
   version: string | null,
   major: number
-): string | undefined {
+): string | undefined => {
   if (!version) {
     return undefined;
   }
   return version.split(".")[0] === String(major) ? version : undefined;
-}
+};
 
 const DEFAULT_NPM_REGISTRY = "https://registry.npmjs.org";
 
@@ -35,20 +35,20 @@ const DEFAULT_NPM_REGISTRY = "https://registry.npmjs.org";
  * Does not read `.npmrc`, scope-specific registries, or auth. Failures fall
  * back to hardcoded ranges; the package manager still resolves installs.
  */
-function resolveNpmRegistry(): string {
+const resolveNpmRegistry = (): string => {
   const fromEnv =
     process.env.npm_config_registry ?? process.env.NPM_CONFIG_REGISTRY;
   const registry = (fromEnv?.trim() || DEFAULT_NPM_REGISTRY).replace(
-    /\/+$/,
+    /\/+$/u,
     ""
   );
   return registry || DEFAULT_NPM_REGISTRY;
-}
+};
 
-async function fetchNpmDistVersion(
+const fetchNpmDistVersion = async (
   packageName: string,
   distTag: string
-): Promise<string | null> {
+): Promise<string | null> => {
   try {
     const registry = resolveNpmRegistry();
     const res = await fetch(
@@ -63,11 +63,11 @@ async function fetchNpmDistVersion(
   } catch {
     return null;
   }
-}
+};
 
-export async function resolveMigrationTargetVersions(
+export const resolveMigrationTargetVersions = async (
   mode: MigrationMode
-): Promise<MigrationTargetVersions> {
+): Promise<MigrationTargetVersions> => {
   if (mode === "stable") {
     const latest = matchingMajor(
       await fetchNpmDistVersion("typescript", "latest"),
@@ -147,12 +147,12 @@ export async function resolveMigrationTargetVersions(
       resolvedLatest: ts6 ?? undefined,
     },
   };
-}
+};
 
-export function formatTargetVersions(
+export const formatTargetVersions = (
   mode: MigrationMode,
   versions: MigrationTargetVersions
-): string[] {
+): string[] => {
   const lines: string[] = [];
 
   if (versions.nativeAlias) {
@@ -178,4 +178,4 @@ export function formatTargetVersions(
   }
 
   return lines;
-}
+};

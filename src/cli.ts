@@ -18,24 +18,22 @@ program
   )
   .version("0.1.0");
 
-function collect(value: string, previous: string[]): string[] {
-  return [...previous, value];
-}
+const collect = (value: string, previous: string[]): string[] => [...previous, value];
 
-function parseChoice<T extends string>(
+const parseChoice = <T extends string>(
   value: string,
   choices: readonly T[]
-): T {
+): T => {
   if (choices.includes(value as T)) {
     return value as T;
   }
   throw new Error(
     `Invalid value "${value}". Expected one of: ${choices.join(", ")}`
   );
-}
+};
 
-function sharedOptions(cmd: Command): Command {
-  return cmd
+const sharedOptions = (cmd: Command): Command =>
+  cmd
     .argument("[dir]", "Project directory", ".")
     .option("--cwd <dir>", "Project directory (same as positional [dir])")
     .option("--nightly", "Use typescript@next instead of stable typescript")
@@ -65,20 +63,19 @@ function sharedOptions(cmd: Command): Command {
       collect,
       []
     );
-}
 
-function parseIntOption(value: string): number {
+const parseIntOption = (value: string): number => {
   const parsed = Number.parseInt(value, 10);
   if (Number.isNaN(parsed)) {
     throw new TypeError(`Invalid number: ${value}`);
   }
-  return Math.trunc(Number(parsed));
-}
+  return Math.trunc(Number(value));
+};
 
-function toOptions(
+const toOptions = (
   dir: string,
   opts: Record<string, unknown>
-): CliMigrateOptions {
+): CliMigrateOptions => {
   return {
     builders: opts.builders as number | undefined,
     checkers: opts.checkers as number | undefined,
@@ -100,7 +97,7 @@ function toOptions(
     write: opts.write as boolean | undefined,
     yes: Boolean(opts.yes),
   };
-}
+};
 
 sharedOptions(
   program
