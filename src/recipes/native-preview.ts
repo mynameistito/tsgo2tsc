@@ -1,14 +1,7 @@
-import { hasDependency, findDependencySection } from "../core/workspace.js";
+import { findDependencySection } from "../core/workspace.js";
 import { replaceTsgoInCommand, addTscFlags } from "../patchers/text.js";
 import { scanPackageJson } from "../scanners/package-json.js";
-import type {
-  DetectionResult,
-  MigrationAction,
-  MigrationMode,
-  ProjectContext,
-  Recipe,
-  WorkspacePackage,
-} from "../types.js";
+import type { MigrationAction, Recipe } from "../types.js";
 
 const NATIVE_PREVIEW = "@typescript/native-preview";
 

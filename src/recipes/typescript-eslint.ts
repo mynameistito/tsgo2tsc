@@ -1,10 +1,5 @@
 import { detectCompatDependencies } from "../scanners/package-json.js";
-import type {
-  DetectionResult,
-  ProjectContext,
-  Recipe,
-  WorkspacePackage,
-} from "../types.js";
+import type { Recipe } from "../types.js";
 
 export const typescriptEslintRecipe: Recipe = {
   detect(_ctx, pkg) {

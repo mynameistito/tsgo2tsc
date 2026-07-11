@@ -72,7 +72,7 @@ function parseIntOption(value: string): number {
   if (Number.isNaN(parsed)) {
     throw new TypeError(`Invalid number: ${value}`);
   }
-  return parsed;
+  return Math.trunc(Number(parsed));
 }
 
 function toOptions(

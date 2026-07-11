@@ -29,7 +29,7 @@ describe("release helpers", () => {
 
     await expect(
       runNpmRelease(
-        async (command, args) => {
+        (command, args) => {
           calls.push([command, ...args]);
           return result(1, "", "npm error code E401");
         },
@@ -49,7 +49,7 @@ describe("release helpers", () => {
     ];
 
     await runNpmRelease(
-      async (command, args) => {
+      (command, args) => {
         calls.push([command, ...args]);
         return responses.shift() ?? result(1, "", "unexpected call");
       },

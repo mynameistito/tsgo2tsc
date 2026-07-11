@@ -1,6 +1,6 @@
 import { hasDependency } from "../core/workspace.js";
 import { planGithubActions } from "../recipes/github-actions.js";
-import { allRecipes, compatRecipes } from "../recipes/index.js";
+import { compatRecipes } from "../recipes/index.js";
 import { nativePreviewRecipe } from "../recipes/native-preview.js";
 import { planVscodeActions } from "../recipes/vscode.js";
 import {

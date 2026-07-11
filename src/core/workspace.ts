@@ -64,7 +64,7 @@ export async function discoverWorkspaces(
   return packages;
 }
 
-async function getWorkspacePatterns(
+function getWorkspacePatterns(
   rootDir: string,
   rootPkg: PackageJson
 ): Promise<string[]> {
