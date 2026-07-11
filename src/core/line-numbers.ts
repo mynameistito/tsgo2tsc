@@ -56,10 +56,18 @@ const resolvePatchLine = (
   content: string,
   searchHint: string | undefined
 ): number | null => {
-  if (!searchHint) return null;
-  if (searchHint === "useTsgo") return findLineContaining(content, "useTsgo");
-  if (searchHint === "typescript.tsdk") return findLineContaining(content, "typescript.tsdk");
-  if (searchHint === "tsgo") return findLineContaining(content, "tsgo");
+  if (!searchHint) {
+    return null;
+  }
+  if (searchHint === "useTsgo") {
+    return findLineContaining(content, "useTsgo");
+  }
+  if (searchHint === "typescript.tsdk") {
+    return findLineContaining(content, "typescript.tsdk");
+  }
+  if (searchHint === "tsgo") {
+    return findLineContaining(content, "tsgo");
+  }
   return findLineContaining(content, searchHint);
 };
 
@@ -101,6 +109,4 @@ export const resolveActionLines = (
 export const formatAddedDependencyLine = (
   name: string,
   version: string
-): string => {
-  return `    "${name}": "${version}",`;
-};
+): string => `    "${name}": "${version}",`;
