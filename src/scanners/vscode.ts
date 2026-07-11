@@ -1,4 +1,4 @@
-import { join } from "node:path";
+import path from "node:path";
 
 import { parseJsonc } from "../patchers/jsonc.js";
 import type { ProjectContext } from "../types.js";
@@ -11,10 +11,10 @@ export interface VscodeScanResult {
   tsdkValue?: string;
 }
 
-export async function scanVscodeSettings(
+export const scanVscodeSettings = async (
   ctx: ProjectContext
-): Promise<VscodeScanResult | null> {
-  const settingsPath = join(ctx.rootDir, ".vscode", "settings.json");
+): Promise<VscodeScanResult | null> => {
+  const settingsPath = path.join(ctx.rootDir, ".vscode", "settings.json");
   const content = await readText(settingsPath);
   if (!content) {
     return null;
@@ -38,4 +38,4 @@ export async function scanVscodeSettings(
     hasUseTsgo,
     tsdkValue: typeof tsdk === "string" ? tsdk : undefined,
   };
-}
+};
