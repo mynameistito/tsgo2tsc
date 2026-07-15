@@ -29,9 +29,9 @@ describe("release helpers", () => {
 
     await expect(
       runNpmRelease(
-        async (command, args) => {
+        (command, args) => {
           calls.push([command, ...args]);
-          return result(1, "", "npm error code E401");
+          return Promise.resolve(result(1, "", "npm error code E401"));
         },
         { name: "example", version: "1.0.0" }
       )
@@ -40,22 +40,26 @@ describe("release helpers", () => {
     expect(calls).toHaveLength(1);
   });
 
-  test("checks stage-list status and uses supported stage-publish args", async () => {
+  test("uses the OIDC-supported stage-publish command without a package spec", async () => {
     const calls: string[][] = [];
     const responses = [
       result(1, "", "npm error code E404"),
-      result(0, "[]"),
       result(0, "staged"),
     ];
 
     await runNpmRelease(
-      async (command, args) => {
+      (command, args) => {
         calls.push([command, ...args]);
-        return responses.shift() ?? result(1, "", "unexpected call");
+        return Promise.resolve(
+          responses.shift() ?? result(1, "", "unexpected call")
+        );
       },
       { name: "example", version: "1.0.0" }
     );
 
-    expect(calls[2]).toEqual(["npm", "stage", "publish", "."]);
+    expect(calls).toEqual([
+      ["npm", "view", "example@1.0.0", "version"],
+      ["npm", "stage", "publish"],
+    ]);
   });
 });
