@@ -46,8 +46,6 @@ export class ReleaseError extends Error {
 
 const PACKAGE_JSON_PATH = "package.json";
 const CHANGELOG_PATH = "CHANGELOG.md";
-const PUBLISHED_VERSION_CONFLICT = "Cannot stage previously published version";
-
 const releaseCommands = ["github", "npm"] as const;
 
 /** Parses the release subcommand passed to `node --run release`. */
@@ -131,51 +129,6 @@ export const runCommand: CommandRunner = async (command, args) => {
   return { exitCode, stderr, stdout };
 };
 
-const isStagedEntryForVersion = (entry: unknown, version: string) => {
-  if (typeof entry === "string") {
-    return entry === version || entry.endsWith(`@${version}`);
-  }
-
-  if (!entry || typeof entry !== "object") {
-    return false;
-  }
-
-  const record = entry as Record<string, unknown>;
-  const packageRecord = record["package"];
-
-  return (
-    record["version"] === version ||
-    (Boolean(packageRecord) &&
-      typeof packageRecord === "object" &&
-      (packageRecord as Record<string, unknown>)["version"] === version)
-  );
-};
-
-/** Returns whether npm staged-version output contains the package version. */
-export const hasStagedVersion = (input: string, version: string) => {
-  const trimmed = input.trim();
-
-  if (!trimmed) {
-    return false;
-  }
-
-  const parsed = JSON.parse(trimmed) as unknown;
-
-  if (!parsed || typeof parsed !== "object") {
-    return false;
-  }
-
-  if ("error" in parsed) {
-    return false;
-  }
-
-  const staged = Array.isArray(parsed)
-    ? parsed
-    : Object.values(parsed as Record<string, unknown>);
-
-  return staged.some((entry) => isStagedEntryForVersion(entry, version));
-};
-
 /** Stages the package with npm or reports that it is already released. */
 export const runNpmRelease = async (
   runner: CommandRunner = runCommand,
@@ -198,38 +151,15 @@ export const runNpmRelease = async (
     );
   }
 
-  const stagedList = await runner("npm", [
-    "stage",
-    "list",
-    releasePackage.name,
-    "--json",
-  ]);
-
-  if (stagedList.exitCode !== 0) {
-    const stagedOutput = `${stagedList.stdout}${stagedList.stderr}`;
-    throw new ReleaseError(
-      `npm stage list failed with ${stagedList.exitCode}: ${stagedOutput.trim()}`
-    );
-  }
-
-  if (hasStagedVersion(stagedList.stdout, releasePackage.version)) {
-    console.log(`${spec} is already staged for approval`);
-    writeGithubOutputs({ ...baseOutputs, staged: "true" });
-    return;
-  }
-
-  const stagePublish = await runner("npm", ["stage", "publish", "."]);
+  // OIDC is supported for `npm stage publish`, but not `npm stage list`.
+  // Do not pass `.`: staged publishing accepts the package from the current
+  // directory only when no package spec is supplied.
+  const stagePublish = await runner("npm", ["stage", "publish"]);
   const publishOutput = `${stagePublish.stdout}${stagePublish.stderr}`;
 
   process.stdout.write(publishOutput);
 
   if (stagePublish.exitCode !== 0) {
-    if (publishOutput.includes(PUBLISHED_VERSION_CONFLICT)) {
-      console.log(`${spec} is already published or staged`);
-      writeGithubOutputs({ ...baseOutputs, published: "true" });
-      return;
-    }
-
     throw new ReleaseError(
       `npm stage publish failed with ${stagePublish.exitCode}`
     );
