@@ -2,24 +2,20 @@ import type { ProjectContext } from "../types.js";
 import { readText } from "../utils/fs.js";
 import { hasTsgoInvocation } from "./package-json.js";
 
-export async function scanCiFiles(
+export const scanCiFiles = async (
   ctx: ProjectContext
-): Promise<{ file: string; hasTsgo: boolean }[]> {
+): Promise<{ file: string; hasTsgo: boolean }[]> => {
   const ciFiles = ctx.files.filter((f) =>
-    /\.github\/workflows\/.*\.(yml|yaml)$/.test(f.replaceAll("\\", "/"))
+    /\.github\/workflows\/.*\.(?<extension>yml|yaml)$/u.test(
+      f.replaceAll("\\", "/")
+    )
   );
+  const contents = await Promise.all(ciFiles.map((file) => readText(file)));
 
-  const results: { file: string; hasTsgo: boolean }[] = [];
-
-  for (const file of ciFiles) {
-    const content = await readText(file);
-    if (!content) {
-      continue;
-    }
-    if (content.split("\n").some((line) => hasTsgoInvocation(line))) {
-      results.push({ file, hasTsgo: true });
-    }
-  }
-
-  return results;
-}
+  return ciFiles.flatMap((file, index) => {
+    const content = contents[index];
+    return content?.split("\n").some((line) => hasTsgoInvocation(line))
+      ? [{ file, hasTsgo: true }]
+      : [];
+  });
+};

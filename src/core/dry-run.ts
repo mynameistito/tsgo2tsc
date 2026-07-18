@@ -13,22 +13,22 @@ import {
   resolveMigrationTargetVersions,
 } from "./versions.js";
 
-export function highlightChange(
+export const highlightChange = (
   from: string,
   to: string
-): { minus: string; plus: string } {
+): { minus: string; plus: string } => {
   let start = 0;
   const max = Math.min(from.length, to.length);
   while (start < max && from[start] === to[start]) {
-    start++;
+    start += 1;
   }
 
   while (
     start > 0 &&
-    /[A-Za-z0-9_-]/.test(from[start - 1] ?? "") &&
-    /[A-Za-z0-9_-]/.test(to[start - 1] ?? "")
+    /[A-Za-z0-9_-]/u.test(from[start - 1] ?? "") &&
+    /[A-Za-z0-9_-]/u.test(to[start - 1] ?? "")
   ) {
-    start--;
+    start -= 1;
   }
 
   let fromEnd = from.length;
@@ -38,8 +38,8 @@ export function highlightChange(
     toEnd > start &&
     from[fromEnd - 1] === to[toEnd - 1]
   ) {
-    fromEnd--;
-    toEnd--;
+    fromEnd -= 1;
+    toEnd -= 1;
   }
 
   const prefix = from.slice(0, start);
@@ -51,30 +51,30 @@ export function highlightChange(
     minus: prefix + pc.red(fromMid) + suffix,
     plus: prefix + pc.green(toMid) + suffix,
   };
-}
+};
 
-function lineTag(line: number | undefined): string {
+const lineTag = (line: number | undefined): string => {
   if (!line) {
     return pc.dim("L?  ");
   }
   return pc.dim(`L${String(line).padEnd(3)}`);
-}
+};
 
-function printMinusLine(line: number | undefined, text: string): void {
+const printMinusLine = (line: number | undefined, text: string): void => {
   console.log(`  ${lineTag(line)} ${pc.red("−")} ${text}`);
-}
+};
 
-function printPlusLine(line: number | undefined, text: string): void {
+const printPlusLine = (line: number | undefined, text: string): void => {
   console.log(`  ${lineTag(line)} ${pc.green("+")} ${text}`);
-}
+};
 
-function printScriptChange(
+const printScriptChange = (
   content: string,
   scriptName: string,
   from: string,
   to: string,
   line: number | undefined
-): void {
+): void => {
   const rawLine =
     line === undefined
       ? `"${scriptName}": "${from}"`
@@ -87,14 +87,14 @@ function printScriptChange(
   );
   printMinusLine(line, minus);
   printPlusLine(line, plus);
-}
+};
 
-function printPatchChange(
+const printPatchChange = (
   content: string,
   action: Extract<MigrationAction, { type: "patchFile" }>,
   description: string,
   line: number | undefined
-): void {
+): void => {
   const raw = line === undefined ? description : getLineContent(content, line);
   const patched = action.apply(content);
   const patchedRaw = line === undefined ? "" : getLineContent(patched, line);
@@ -106,20 +106,24 @@ function printPatchChange(
   } else {
     printPlusLine(line, pc.green(description));
   }
-}
+};
 
-function printWarning(message: string, severity: string): void {
-  const color =
-    severity === "error" ? pc.red : (severity === "warning" ? pc.yellow : pc.dim);
+const printWarning = (message: string, severity: string): void => {
+  if (severity === "error") {
+    console.log(`  ${pc.dim("L?  ")} ${pc.red("!")} ${pc.red(message)}`);
+    return;
+  }
+
+  const color = severity === "warning" ? pc.yellow : pc.dim;
   console.log(`  ${pc.dim("L?  ")} ${color("!")} ${color(message)}`);
-}
+};
 
-function formatFilePath(file: string, rootDir: string): string {
+const formatFilePath = (file: string, rootDir: string): string => {
   const rel = relativePath(rootDir, file).replaceAll("\\", "/");
   return rel || file.replaceAll("\\", "/");
-}
+};
 
-function printFileAction(content: string, action: MigrationAction): void {
+const printFileAction = (content: string, action: MigrationAction): void => {
   const { minusLine, plusLine } = resolveActionLines(content, action);
 
   switch (action.type) {
@@ -159,21 +163,29 @@ function printFileAction(content: string, action: MigrationAction): void {
       );
       break;
     }
+    default: {
+      break;
+    }
   }
-}
+};
 
-export async function printDryRunOutput(
+export const printDryRunOutput = async (
   plan: MigrationPlan,
   actions: MigrationAction[],
   nativePreviewCount: number,
   rootDir: string
-): Promise<void> {
+): Promise<void> => {
   const grouped = groupActionsByFile(actions);
   const warnings = actions.filter((a) => a.type === "warn");
   const fileContents = new Map<string, string>();
 
-  for (const file of grouped.keys()) {
-    fileContents.set(file, (await readText(file)) ?? "");
+  const contents = await Promise.all(
+    [...grouped.keys()].map(
+      async (file) => [file, (await readText(file)) ?? ""] as const
+    )
+  );
+  for (const [file, content] of contents) {
+    fileContents.set(file, content);
   }
 
   console.log(pc.bold("tsgo2tsc"));
@@ -243,4 +255,4 @@ export async function printDryRunOutput(
       pc.white("--write") +
       pc.dim(" to apply.")
   );
-}
+};

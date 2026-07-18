@@ -12,20 +12,79 @@ const DEPRECATED_TSCONFIG_KEYS = [
   "charset",
 ] as const;
 
-export async function scanTsconfigWarnings(
+const stripComments = (content: string): string => {
+  let result = "";
+  let inString: string | null = null;
+  let escaped = false;
+
+  for (let i = 0; i < content.length; i += 1) {
+    const char = content[i];
+    const next = content[i + 1];
+
+    if (inString) {
+      result += char;
+      if (escaped) {
+        escaped = false;
+      } else if (char === "\\") {
+        escaped = true;
+      } else if (char === inString) {
+        inString = null;
+      }
+      continue;
+    }
+
+    if (char === '"' || char === "'" || char === "`") {
+      inString = char;
+      result += char;
+      continue;
+    }
+
+    if (char === "/" && next === "/") {
+      while (i < content.length && content[i] !== "\n") {
+        i += 1;
+      }
+      result += "\n";
+      continue;
+    }
+
+    if (char === "/" && next === "*") {
+      i += 2;
+      while (
+        i < content.length &&
+        !(content[i] === "*" && content[i + 1] === "/")
+      ) {
+        if (content[i] === "\n") {
+          result += "\n";
+        }
+        i += 1;
+      }
+      i += 1;
+      continue;
+    }
+
+    result += char;
+  }
+
+  return result;
+};
+
+export const scanTsconfigWarnings = async (
   ctx: ProjectContext
-): Promise<{ file: string; message: string; severity: "info" | "warning" }[]> {
+): Promise<
+  { file: string; message: string; severity: "info" | "warning" }[]
+> => {
   const warnings: {
     file: string;
     message: string;
     severity: "info" | "warning";
   }[] = [];
   const tsconfigs = ctx.files.filter(
-    (f) => /tsconfig.*\.json$/.test(f) || f.endsWith("tsconfig.json")
+    (f) => /tsconfig.*\.json$/u.test(f) || f.endsWith("tsconfig.json")
   );
+  const contents = await Promise.all(tsconfigs.map((file) => readText(file)));
 
-  for (const file of tsconfigs) {
-    const content = await readText(file);
+  for (const [index, file] of tsconfigs.entries()) {
+    const content = contents[index];
     if (!content) {
       continue;
     }
@@ -68,84 +127,30 @@ export async function scanTsconfigWarnings(
   }
 
   return warnings;
-}
+};
 
-export async function scanTsdownDeclaration(
+export const scanTsdownDeclaration = async (
   ctx: ProjectContext
-): Promise<boolean> {
+): Promise<boolean> => {
   const tsdownConfigs = ctx.files.filter((f) =>
-    /tsdown\.config\.(js|mjs|ts)$/.test(f)
+    /tsdown\.config\.(?<extension>js|mjs|ts)$/u.test(f)
+  );
+  const contents = await Promise.all(
+    tsdownConfigs.map((file) => readText(file))
   );
 
-  for (const file of tsdownConfigs) {
-    const content = await readText(file);
+  for (const content of contents) {
     if (!content) {
       continue;
     }
     const uncommented = stripComments(content);
     if (
-      /\bdts\s*:\s*true\b/.test(uncommented) ||
-      /\bdeclaration\s*:\s*true\b/.test(uncommented)
+      /\bdts\s*:\s*true\b/u.test(uncommented) ||
+      /\bdeclaration\s*:\s*true\b/u.test(uncommented)
     ) {
       return true;
     }
   }
 
   return false;
-}
-
-function stripComments(content: string): string {
-  let result = "";
-  let inString: string | null = null;
-  let escaped = false;
-
-  for (let i = 0; i < content.length; i++) {
-    const char = content[i];
-    const next = content[i + 1];
-
-    if (inString) {
-      result += char;
-      if (escaped) {
-        escaped = false;
-      } else if (char === "\\") {
-        escaped = true;
-      } else if (char === inString) {
-        inString = null;
-      }
-      continue;
-    }
-
-    if (char === '"' || char === "'" || char === "`") {
-      inString = char;
-      result += char;
-      continue;
-    }
-
-    if (char === "/" && next === "/") {
-      while (i < content.length && content[i] !== "\n") {
-        i++;
-      }
-      result += "\n";
-      continue;
-    }
-
-    if (char === "/" && next === "*") {
-      i += 2;
-      while (
-        i < content.length &&
-        !(content[i] === "*" && content[i + 1] === "/")
-      ) {
-        if (content[i] === "\n") {
-          result += "\n";
-        }
-        i++;
-      }
-      i++;
-      continue;
-    }
-
-    result += char;
-  }
-
-  return result;
-}
+};

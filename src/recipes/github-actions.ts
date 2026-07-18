@@ -5,32 +5,27 @@ import {
 import { scanCiFiles } from "../scanners/ci.js";
 import type { MigrationAction, ProjectContext } from "../types.js";
 
-export async function planGithubActions(
-  ctx: ProjectContext
-): Promise<MigrationAction[]> {
-  if (!ctx.updateCi) {
-    return [];
+const owningStepIndex = (lines: string[], index: number): number => {
+  const line = lines[index] ?? "";
+  if (/^\s*-(?:\s|$)/u.test(line)) {
+    return index;
   }
 
-  const ciFiles = await scanCiFiles(ctx);
-  const actions: MigrationAction[] = [];
-
-  for (const { file } of ciFiles) {
-    actions.push({
-      apply(content: string) {
-        return patchCiContent(content);
-      },
-      description: "replace tsgo with tsc in CI workflow",
-      path: file,
-      searchHint: "tsgo",
-      type: "patchFile",
-    });
+  const lineIndent = /^(?<indent>\s*)/u.exec(line)?.groups?.indent.length ?? 0;
+  for (let i = index - 1; i >= 0; i -= 1) {
+    const prev = lines[i] ?? "";
+    if (prev.trim() === "") {
+      continue;
+    }
+    const listItem = /^(?<indent>\s*)-(?:\s|$)/u.exec(prev);
+    if (listItem && (listItem.groups?.indent.length ?? 0) < lineIndent) {
+      return i;
+    }
   }
+  return index;
+};
 
-  return actions;
-}
-
-function patchCiContent(content: string): string {
+const patchCiContent = (content: string): string => {
   const lines = content.split("\n");
   const patched = lines.map((line) => {
     const runPatched = replaceTsgoInRunLine(line);
@@ -58,33 +53,34 @@ function patchCiContent(content: string): string {
   ) {
     // Insert before the owning step list item, not the matched run/continuation line.
     const insertAt = owningStepIndex(patched, bunxTscIndex);
-    const indent = /^(\s*)/u.exec(patched[insertAt] ?? "")?.[1] ?? "";
+    const indent =
+      /^(?<indent>\s*)/u.exec(patched[insertAt] ?? "")?.groups?.indent ?? "";
     patched.splice(insertAt, 0, `${indent}- uses: oven-sh/setup-bun@v1`);
   }
   return patched.join("\n");
-}
+};
 
-/**
- * Index of the owning `-` step for a step property or multiline `run:` body line.
- * Continuation lines and nested keys must not be treated as insertion points.
- * Matches both `- key:` and bare `-` (content on following indented lines).
- */
-function owningStepIndex(lines: string[], index: number): number {
-  const line = lines[index] ?? "";
-  if (/^\s*-(?:\s|$)/u.test(line)) {
-    return index;
+export const planGithubActions = async (
+  ctx: ProjectContext
+): Promise<MigrationAction[]> => {
+  if (!ctx.updateCi) {
+    return [];
   }
 
-  const lineIndent = /^(\s*)/u.exec(line)?.[1]?.length ?? 0;
-  for (let i = index - 1; i >= 0; i--) {
-    const prev = lines[i] ?? "";
-    if (prev.trim() === "") {
-      continue;
-    }
-    const listItem = /^(\s*)-(?:\s|$)/u.exec(prev);
-    if (listItem && (listItem[1]?.length ?? 0) < lineIndent) {
-      return i;
-    }
+  const ciFiles = await scanCiFiles(ctx);
+  const actions: MigrationAction[] = [];
+
+  for (const { file } of ciFiles) {
+    actions.push({
+      apply(content: string) {
+        return patchCiContent(content);
+      },
+      description: "replace tsgo with tsc in CI workflow",
+      path: file,
+      searchHint: "tsgo",
+      type: "patchFile",
+    });
   }
-  return index;
-}
+
+  return actions;
+};

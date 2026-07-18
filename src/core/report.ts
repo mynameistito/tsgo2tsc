@@ -8,10 +8,108 @@ import type {
   VerificationResult,
 } from "../types.js";
 
-export function formatReport(
+const rollbackCommand = (pm: PackageManager): string => {
+  switch (pm) {
+    case "bun": {
+      return "bunx tsgo2tsc rollback";
+    }
+    case "pnpm": {
+      return "pnpm dlx tsgo2tsc rollback";
+    }
+    case "yarn": {
+      return "yarn dlx tsgo2tsc rollback";
+    }
+    default: {
+      return "npx tsgo2tsc rollback";
+    }
+  }
+};
+
+const formatSummary = (mode: MigrationMode, tools: string[]): string => {
+  if (mode.startsWith("compat")) {
+    return [
+      "Migration completed with compatibility mode.",
+      "",
+      "The project was not migrated to plain `typescript` because the following tools may still need the TypeScript 6 compiler API:",
+      "",
+      ...tools.map((t) => `- \`${t}\``),
+      "",
+      "The project now uses:",
+      "",
+      "- `@typescript/native` as an alias to TypeScript 7",
+      "- `typescript` as an alias to `@typescript/typescript6`",
+    ].join("\n");
+  }
+
+  if (mode === "nightly") {
+    return "Migration completed to `typescript@next` with `tsc`.";
+  }
+
+  return "Migration completed to stable `typescript@^7.0.0` with `tsc`.";
+};
+
+const formatDependencyChanges = (
+  actions: SerializableMigrationAction[]
+): string[] => {
+  const lines: string[] = [];
+  for (const action of actions) {
+    if (action.type === "removeDependency") {
+      lines.push(`- remove ${action.section} \`${action.name}\``);
+    } else if (action.type === "addDependency") {
+      lines.push(
+        `- add ${action.section} \`${action.name}\` = \`${action.version}\``
+      );
+    }
+  }
+  return lines.length > 0 ? lines : ["- none"];
+};
+
+const formatScriptChanges = (
+  actions: SerializableMigrationAction[]
+): string[] => {
+  const lines: string[] = [];
+  for (const action of actions) {
+    if (action.type === "replaceScriptToken") {
+      lines.push(
+        `- \`${action.scriptName}\`: \`${action.from}\` -> \`${action.to}\``
+      );
+    } else if (action.type === "patchFile") {
+      lines.push(`- ${action.path}: ${action.description}`);
+    }
+  }
+  return lines.length > 0 ? lines : ["- none"];
+};
+
+const formatWarnings = (
+  actions: (MigrationAction | SerializableMigrationAction)[]
+): string[] => {
+  const warns = actions.filter((a) => a.type === "warn");
+  if (warns.length === 0) {
+    return ["- none"];
+  }
+  return warns.map((w) => {
+    if (w.type !== "warn") {
+      return "";
+    }
+    return `- [${w.severity}] ${w.message}`;
+  });
+};
+
+const formatVerification = (results: VerificationResult[]): string[] => {
+  if (results.length === 0) {
+    return ["- not run"];
+  }
+  return results.map((r) =>
+    r.success
+      ? `- ✔ \`${r.command}\``
+      : `- ✖ \`${r.command}\`\n  \`\`\`\n${(r.output ?? "").trim()}\n  \`\`\``
+  );
+};
+
+export const formatReport = (
   plan: MigrationPlan,
   record: MigrationRecord
-): string {
+): string => {
   const lines: string[] = [
     "# tsgo2tsc migration report",
     "",
@@ -67,110 +165,13 @@ export function formatReport(
   ];
 
   return lines.join("\n");
-}
+};
 
-function rollbackCommand(pm: PackageManager): string {
-  switch (pm) {
-    case "bun": {
-      return "bunx tsgo2tsc rollback";
-    }
-    case "pnpm": {
-      return "pnpm dlx tsgo2tsc rollback";
-    }
-    case "yarn": {
-      return "yarn dlx tsgo2tsc rollback";
-    }
-    case "npm":
-    default: {
-      return "npx tsgo2tsc rollback";
-    }
-  }
-}
-
-function formatSummary(mode: MigrationMode, tools: string[]): string {
-  if (mode.startsWith("compat")) {
-    return [
-      "Migration completed with compatibility mode.",
-      "",
-      "The project was not migrated to plain `typescript` because the following tools may still need the TypeScript 6 compiler API:",
-      "",
-      ...tools.map((t) => `- \`${t}\``),
-      "",
-      "The project now uses:",
-      "",
-      "- `@typescript/native` as an alias to TypeScript 7",
-      "- `typescript` as an alias to `@typescript/typescript6`",
-    ].join("\n");
-  }
-
-  if (mode === "nightly") {
-    return "Migration completed to `typescript@next` with `tsc`.";
-  }
-
-  return "Migration completed to stable `typescript@^7.0.0` with `tsc`.";
-}
-
-function formatDependencyChanges(
-  actions: SerializableMigrationAction[]
-): string[] {
-  const lines: string[] = [];
-  for (const action of actions) {
-    if (action.type === "removeDependency") {
-      lines.push(`- remove ${action.section} \`${action.name}\``);
-    } else if (action.type === "addDependency") {
-      lines.push(
-        `- add ${action.section} \`${action.name}\` = \`${action.version}\``
-      );
-    }
-  }
-  return lines.length > 0 ? lines : ["- none"];
-}
-
-function formatScriptChanges(actions: SerializableMigrationAction[]): string[] {
-  const lines: string[] = [];
-  for (const action of actions) {
-    if (action.type === "replaceScriptToken") {
-      lines.push(
-        `- \`${action.scriptName}\`: \`${action.from}\` -> \`${action.to}\``
-      );
-    } else if (action.type === "patchFile") {
-      lines.push(`- ${action.path}: ${action.description}`);
-    }
-  }
-  return lines.length > 0 ? lines : ["- none"];
-}
-
-function formatWarnings(
-  actions: (MigrationAction | SerializableMigrationAction)[]
-): string[] {
-  const warns = actions.filter((a) => a.type === "warn");
-  if (warns.length === 0) {
-    return ["- none"];
-  }
-  return warns.map((w) => {
-    if (w.type !== "warn") {
-      return "";
-    }
-    return `- [${w.severity}] ${w.message}`;
-  });
-}
-
-function formatVerification(results: VerificationResult[]): string[] {
-  if (results.length === 0) {
-    return ["- not run"];
-  }
-  return results.map((r) =>
-    r.success
-      ? `- ✔ \`${r.command}\``
-      : `- ✖ \`${r.command}\`\n  \`\`\`\n${(r.output ?? "").trim()}\n  \`\`\``
-  );
-}
-
-export function formatScanOutput(
+export const formatScanOutput = (
   pm: PackageManager,
   packages: string[],
   plan: MigrationPlan
-): string {
+): string => {
   const lines: string[] = [
     `Root package manager: ${pm}`,
     "",
@@ -194,4 +195,4 @@ export function formatScanOutput(
   }
 
   return lines.join("\n");
-}
+};

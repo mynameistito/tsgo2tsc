@@ -19,7 +19,7 @@ import { log } from "../utils/logger.js";
 
 const PACKAGE_VERSION = "0.1.0";
 
-export async function runMigrate(options: MigrateOptions): Promise<void> {
+export const runMigrate = async (options: MigrateOptions): Promise<void> => {
   const ctx = await buildProjectContext(options);
   const plan = await createMigrationPlan(ctx);
   const nativePreviewPkgs = hasNativePreviewInAny(ctx.packages);
@@ -114,4 +114,4 @@ export async function runMigrate(options: MigrateOptions): Promise<void> {
       log.error(`  ${check.command}`);
     }
   }
-}
+};

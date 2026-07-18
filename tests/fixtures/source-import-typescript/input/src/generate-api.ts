@@ -1,5 +1,3 @@
 import ts from "typescript";
 
-export function createProgram() {
-  return ts.createProgram([], {});
-}
+export const createProgram = () => ts.createProgram([], {});
