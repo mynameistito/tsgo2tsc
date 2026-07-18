@@ -1,5 +1,7 @@
+import { createHash } from "node:crypto";
 import { mkdir, writeFile, readFile, cp, readdir } from "node:fs/promises";
-import { join, dirname } from "node:path";
+import { homedir } from "node:os";
+import { join, dirname, resolve } from "node:path";
 
 import type {
   MigrationAction,
@@ -8,10 +10,21 @@ import type {
 } from "../types.js";
 import { readText } from "../utils/fs.js";
 
-const BACKUP_DIR = ".tsgo2tsc";
+const getStateHome = (): string => {
+  if (process.platform === "win32") {
+    return process.env.LOCALAPPDATA ?? join(homedir(), "AppData", "Local");
+  }
+
+  if (process.platform === "darwin") {
+    return join(homedir(), "Library", "Application Support");
+  }
+
+  return process.env.XDG_STATE_HOME ?? join(homedir(), ".local", "state");
+};
 
 export function getBackupRoot(cwd: string): string {
-  return join(cwd, BACKUP_DIR);
+  const projectId = createHash("sha256").update(resolve(cwd)).digest("hex");
+  return join(getStateHome(), "tsgo2tsc", "projects", projectId);
 }
 
 export async function createSnapshot(

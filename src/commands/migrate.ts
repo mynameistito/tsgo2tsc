@@ -108,8 +108,7 @@ export async function runMigrate(options: MigrateOptions): Promise<void> {
 
   log.success(`Migration applied (${plan.mode}).`);
   log.info(`Changed ${record.filesChanged.length} file(s).`);
-  log.dim(`Snapshot: .tsgo2tsc/snapshots/${createdAt.replaceAll(":", "-")}`);
-  log.dim("Report: .tsgo2tsc/report.md");
+  log.dim("Rollback data is stored in your local tsgo2tsc state directory.");
 
   const failedChecks = record.verification?.filter((v) => !v.success) ?? [];
   if (failedChecks.length > 0) {

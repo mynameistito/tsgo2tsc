@@ -16,6 +16,7 @@ import { createMigrationPlan } from "../src/core/planner.js";
 import {
   collectFilesToBackup,
   createSnapshot,
+  getBackupRoot,
   rollbackFromSnapshot,
   serializeActions,
 } from "../src/core/snapshot.js";
@@ -465,7 +466,7 @@ describe("migration fixtures", () => {
     expect(after).toBe(before);
   });
 
-  test("rollback restores snapshot", async () => {
+  test("rollback restores a snapshot stored outside the project", async () => {
     const cwd = await copyFixture("simple-native-preview");
     const before = await readFile(join(cwd, "package.json"), "utf-8");
     const ctx = await buildProjectContext(baseOptions(cwd));
@@ -485,11 +486,13 @@ describe("migration fixtures", () => {
     const changed = await readFile(join(cwd, "package.json"), "utf-8");
     expect(changed).not.toBe(before);
 
+    const backupRoot = getBackupRoot(cwd);
+    expect(backupRoot).not.toStartWith(cwd);
+
     const snapshotDir = join(
-      cwd,
-      ".tsgo2tsc",
+      backupRoot,
       "snapshots",
-      await readFile(join(cwd, ".tsgo2tsc", "latest.json"), "utf-8").then(
+      await readFile(join(backupRoot, "latest.json"), "utf-8").then(
         (c) => JSON.parse(c).snapshot
       )
     );
