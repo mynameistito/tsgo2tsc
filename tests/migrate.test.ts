@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { cp, mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { applyActions } from "../src/core/apply.js";
@@ -298,6 +298,31 @@ describe("package manager detection", () => {
   });
 });
 
+describe("rollback state", () => {
+  test("ignores empty and relative configured state directories", () => {
+    if (process.platform === "darwin") {
+      return;
+    }
+
+    const variable =
+      process.platform === "win32" ? "LOCALAPPDATA" : "XDG_STATE_HOME";
+    const previous = process.env[variable];
+
+    try {
+      process.env[variable] = "relative-state";
+      expect(getBackupRoot(".")).toStartWith(homedir());
+
+      process.env[variable] = "";
+      expect(getBackupRoot(".")).toStartWith(homedir());
+    } finally {
+      if (previous === undefined) {
+        delete process.env[variable];
+      } else {
+        process.env[variable] = previous;
+      }
+    }
+  });
+});
 describe("migration fixtures", () => {
   test("simple-native-preview removes native-preview and adds stable typescript", async () => {
     const { cwd } = await migrateFixture("simple-native-preview");

@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { mkdir, writeFile, readFile, cp, readdir } from "node:fs/promises";
 import { homedir } from "node:os";
-import { join, dirname, resolve } from "node:path";
+import { join, dirname, resolve, isAbsolute } from "node:path";
 
 import type {
   MigrationAction,
@@ -10,16 +10,27 @@ import type {
 } from "../types.js";
 import { readText } from "../utils/fs.js";
 
+const resolveStateHome = (
+  value: string | undefined,
+  fallback: string
+): string => (value && isAbsolute(value) ? value : fallback);
+
 const getStateHome = (): string => {
   if (process.platform === "win32") {
-    return process.env.LOCALAPPDATA ?? join(homedir(), "AppData", "Local");
+    return resolveStateHome(
+      process.env.LOCALAPPDATA,
+      join(homedir(), "AppData", "Local")
+    );
   }
 
   if (process.platform === "darwin") {
     return join(homedir(), "Library", "Application Support");
   }
 
-  return process.env.XDG_STATE_HOME ?? join(homedir(), ".local", "state");
+  return resolveStateHome(
+    process.env.XDG_STATE_HOME,
+    join(homedir(), ".local", "state")
+  );
 };
 
 export function getBackupRoot(cwd: string): string {
