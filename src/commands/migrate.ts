@@ -4,13 +4,12 @@ import { applyActions } from "../core/apply.js";
 import { buildProjectContext } from "../core/context.js";
 import { printDryRunOutput } from "../core/dry-run.js";
 import { createMigrationPlan } from "../core/planner.js";
-import { writeReport, writeSnapshotReport } from "../core/report.js";
+import { formatReport } from "../core/report.js";
 import {
   collectFilesToBackup,
   createSnapshot,
   rollbackFromSnapshot,
   serializeActions,
-  writeMigrationRecord,
 } from "../core/snapshot.js";
 import { runVerification } from "../core/verify.js";
 import { hasNativePreviewInAny } from "../scanners/package-json.js";
@@ -102,9 +101,7 @@ export async function runMigrate(options: MigrateOptions): Promise<void> {
     record.verification = verification.results;
   }
 
-  await writeMigrationRecord(snapshotDir, record);
-  await writeSnapshotReport(snapshotDir, plan, record);
-  await writeReport(ctx.rootDir, plan, record);
+  console.log(formatReport(plan, record));
 
   log.success(`Migration applied (${plan.mode}).`);
   log.info(`Changed ${record.filesChanged.length} file(s).`);

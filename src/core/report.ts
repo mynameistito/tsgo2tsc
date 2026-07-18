@@ -1,5 +1,3 @@
-import { join } from "node:path";
-
 import type {
   MigrationAction,
   MigrationMode,
@@ -9,28 +7,11 @@ import type {
   SerializableMigrationAction,
   VerificationResult,
 } from "../types.js";
-import { writeText } from "../utils/fs.js";
 
-export async function writeReport(
-  cwd: string,
+export function formatReport(
   plan: MigrationPlan,
   record: MigrationRecord
-): Promise<void> {
-  const reportPath = join(cwd, ".tsgo2tsc", "report.md");
-  const content = formatReport(plan, record);
-  await writeText(reportPath, content);
-}
-
-export async function writeSnapshotReport(
-  snapshotDir: string,
-  plan: MigrationPlan,
-  record: MigrationRecord
-): Promise<void> {
-  const content = formatReport(plan, record);
-  await writeText(join(snapshotDir, "report.md"), content);
-}
-
-function formatReport(plan: MigrationPlan, record: MigrationRecord): string {
+): string {
   const lines: string[] = [
     "# tsgo2tsc migration report",
     "",

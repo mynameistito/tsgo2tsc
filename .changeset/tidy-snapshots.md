@@ -2,4 +2,4 @@
 "tsgo2tsc": patch
 ---
 
-Keep migration rollback data outside migrated projects.
+Keep migration rollback data outside migrated projects and print reports to the terminal.
