@@ -1,5 +1,7 @@
+import { createHash } from "node:crypto";
 import { mkdir, writeFile, readFile, cp, readdir } from "node:fs/promises";
-import { join, dirname } from "node:path";
+import { homedir } from "node:os";
+import path from "node:path";
 
 import type {
   MigrationAction,
@@ -8,67 +10,93 @@ import type {
 } from "../types.js";
 import { readText } from "../utils/fs.js";
 
-const BACKUP_DIR = ".tsgo2tsc";
+const resolveStateHome = (
+  value: string | undefined,
+  fallback: string
+): string => (value && path.isAbsolute(value) ? value : fallback);
 
-export function getBackupRoot(cwd: string): string {
-  return join(cwd, BACKUP_DIR);
-}
+const getStateHome = (): string => {
+  if (process.platform === "win32") {
+    return resolveStateHome(
+      process.env.LOCALAPPDATA,
+      path.join(homedir(), "AppData", "Local")
+    );
+  }
 
-export async function createSnapshot(
+  if (process.platform === "darwin") {
+    return path.join(homedir(), "Library", "Application Support");
+  }
+
+  return resolveStateHome(
+    process.env.XDG_STATE_HOME,
+    path.join(homedir(), ".local", "state")
+  );
+};
+
+export const getBackupRoot = (cwd: string): string => {
+  const projectId = createHash("sha256")
+    .update(path.resolve(cwd))
+    .digest("hex");
+  return path.join(getStateHome(), "tsgo2tsc", "projects", projectId);
+};
+
+export const writeMigrationRecord = async (
+  snapshotDir: string,
+  record: MigrationRecord
+): Promise<void> => {
+  await writeFile(
+    path.join(snapshotDir, "migration.json"),
+    `${JSON.stringify(record, null, 2)}\n`,
+    "utf-8"
+  );
+};
+
+export const createSnapshot = async (
   cwd: string,
   filesToBackup: string[],
   record: MigrationRecord,
   afterPatch?: string
-): Promise<string> {
+): Promise<string> => {
   const timestamp = record.createdAt.replaceAll(":", "-");
-  const snapshotDir = join(getBackupRoot(cwd), "snapshots", timestamp);
-  const beforeDir = join(snapshotDir, "before");
+  const snapshotDir = path.join(getBackupRoot(cwd), "snapshots", timestamp);
+  const beforeDir = path.join(snapshotDir, "before");
 
   await mkdir(beforeDir, { recursive: true });
 
-  for (const file of filesToBackup) {
-    const content = await readText(file);
-    if (content === null) {
-      continue;
-    }
-    const rel = file.startsWith(cwd)
-      ? file.slice(cwd.length).replace(/^[/\\]/, "")
-      : file;
-    const dest = join(beforeDir, rel);
-    await mkdir(dirname(dest), { recursive: true });
-    await writeFile(dest, content, "utf-8");
-  }
+  await Promise.all(
+    filesToBackup.map(async (file) => {
+      const content = await readText(file);
+      if (content === null) {
+        return;
+      }
+      const rel = file.startsWith(cwd)
+        ? file.slice(cwd.length).replace(/^[/\\]/u, "")
+        : file;
+      const dest = path.join(beforeDir, rel);
+      await mkdir(path.dirname(dest), { recursive: true });
+      await writeFile(dest, content, "utf-8");
+    })
+  );
 
   await writeMigrationRecord(snapshotDir, record);
 
   if (afterPatch) {
-    await writeFile(join(snapshotDir, "after.patch"), afterPatch, "utf-8");
+    await writeFile(path.join(snapshotDir, "after.patch"), afterPatch, "utf-8");
   }
 
   await writeFile(
-    join(getBackupRoot(cwd), "latest.json"),
+    path.join(getBackupRoot(cwd), "latest.json"),
     `${JSON.stringify({ createdAt: record.createdAt, snapshot: timestamp }, null, 2)}\n`,
     "utf-8"
   );
 
   return snapshotDir;
-}
+};
 
-export async function writeMigrationRecord(
-  snapshotDir: string,
-  record: MigrationRecord
-): Promise<void> {
-  await writeFile(
-    join(snapshotDir, "migration.json"),
-    `${JSON.stringify(record, null, 2)}\n`,
-    "utf-8"
-  );
-}
-
-export function serializeActions(
+export const serializeActions = (
   actions: MigrationAction[]
-): SerializableMigrationAction[] {
-  return actions.map((action) => {
+): SerializableMigrationAction[] =>
+  actions.map((action) => {
     if (action.type !== "patchFile") {
       return action;
     }
@@ -78,12 +106,11 @@ export function serializeActions(
       type: "patchFile",
     };
   });
-}
 
-export async function getLatestSnapshotInfo(
+export const getLatestSnapshotInfo = async (
   cwd: string
-): Promise<{ snapshotDir: string; createdAt?: string } | null> {
-  const latestPath = join(getBackupRoot(cwd), "latest.json");
+): Promise<{ snapshotDir: string; createdAt?: string } | null> => {
+  const latestPath = path.join(getBackupRoot(cwd), "latest.json");
   try {
     const content = await readFile(latestPath, "utf-8");
     const latest = JSON.parse(content) as {
@@ -92,46 +119,48 @@ export async function getLatestSnapshotInfo(
     };
     return {
       createdAt: latest.createdAt,
-      snapshotDir: join(getBackupRoot(cwd), "snapshots", latest.snapshot),
+      snapshotDir: path.join(getBackupRoot(cwd), "snapshots", latest.snapshot),
     };
   } catch {
     return null;
   }
-}
+};
 
-export async function getLatestSnapshot(cwd: string): Promise<string | null> {
+export const getLatestSnapshot = async (
+  cwd: string
+): Promise<string | null> => {
   const info = await getLatestSnapshotInfo(cwd);
   return info?.snapshotDir ?? null;
-}
+};
 
-export async function rollbackFromSnapshot(
+export const rollbackFromSnapshot = (
   cwd: string,
   snapshotDir: string
-): Promise<string[]> {
-  const beforeDir = join(snapshotDir, "before");
-  const restored: string[] = [];
+): Promise<string[]> => {
+  const beforeDir = path.join(snapshotDir, "before");
 
-  async function restoreDir(dir: string, base: string): Promise<void> {
+  const restoreDir = async (dir: string, base: string): Promise<string[]> => {
     const entries = await readdir(dir, { withFileTypes: true });
-    for (const entry of entries) {
-      const full = join(dir, entry.name);
-      const rel = join(base, entry.name);
-      if (entry.isDirectory()) {
-        await restoreDir(full, rel);
-      } else {
-        const dest = join(cwd, rel);
-        await mkdir(dirname(dest), { recursive: true });
+    const restored = await Promise.all(
+      entries.map(async (entry) => {
+        const full = path.join(dir, entry.name);
+        const rel = path.join(base, entry.name);
+        if (entry.isDirectory()) {
+          return restoreDir(full, rel);
+        }
+        const dest = path.join(cwd, rel);
+        await mkdir(path.dirname(dest), { recursive: true });
         await cp(full, dest, { force: true });
-        restored.push(rel);
-      }
-    }
-  }
+        return [rel];
+      })
+    );
+    return restored.flat();
+  };
 
-  await restoreDir(beforeDir, "");
-  return restored;
-}
+  return restoreDir(beforeDir, "");
+};
 
-export function collectFilesToBackup(actions: MigrationAction[]): string[] {
+export const collectFilesToBackup = (actions: MigrationAction[]): string[] => {
   const files = new Set<string>();
   for (const action of actions) {
     switch (action.type) {
@@ -145,7 +174,10 @@ export function collectFilesToBackup(actions: MigrationAction[]): string[] {
         files.add(action.path);
         break;
       }
+      default: {
+        break;
+      }
     }
   }
   return [...files];
-}
+};

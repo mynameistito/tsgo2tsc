@@ -4,10 +4,13 @@ import type { PackageJson, WorkspacePackage } from "../types.js";
 const NATIVE_PREVIEW = "@typescript/native-preview";
 
 export const hasTsgoInvocation = (command: string): boolean =>
-  /(?<prefix>^|[;&|({}\s"'/])(?:bunx|npx|pnpm|yarn)\s+tsgo(?=$|[\s;&|)"'])/u.test(command) ||
-  /(?<prefix>^|[;&|({}\s"'/])tsgo(?=$|[\s;&|)"'])/u.test(command);
+  /(?<prefix>^|[;&|({}\s"'/])(?:bunx|npx|pnpm|yarn)\s+tsgo(?=$|[\s;&|)"'])/u.test(
+    command
+  ) || /(?<prefix>^|[;&|({}\s"'/])tsgo(?=$|[\s;&|)"'])/u.test(command);
 
-export const scanPackageJson = (pkg: WorkspacePackage): {
+export const scanPackageJson = (
+  pkg: WorkspacePackage
+): {
   hasNativePreview: boolean;
   hasTsgoScript: boolean;
   scripts: { name: string; value: string }[];

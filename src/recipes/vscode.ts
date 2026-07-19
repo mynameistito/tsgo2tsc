@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import path from "node:path";
 
 import { patchJsonSettings, parseJsonc } from "../patchers/jsonc.js";
 import { scanVscodeSettings } from "../scanners/vscode.js";
@@ -10,34 +10,12 @@ import type {
   Recipe,
 } from "../types.js";
 
-export const vscodeRecipe: Recipe = {
-  detect(ctx) {
-    try {
-      return detectVscodeContent(
-        readFileSync(join(ctx.rootDir, ".vscode", "settings.json"), "utf-8")
-      );
-    } catch {
-      return { detected: false, reasons: [] };
-    }
-  },
-  name: "vscode",
-};
-
-function detectVscodeContent(content: string): {
+const detectVscodeSettings = (
+  settings: Record<string, unknown>
+): {
   detected: boolean;
   reasons: string[];
-} {
-  try {
-    return detectVscodeSettings(parseJsonc<Record<string, unknown>>(content));
-  } catch {
-    return { detected: false, reasons: [] };
-  }
-}
-
-function detectVscodeSettings(settings: Record<string, unknown>): {
-  detected: boolean;
-  reasons: string[];
-} {
+} => {
   const reasons: string[] = [];
   if (settings["js/ts.experimental.useTsgo"] === true) {
     reasons.push("found js/ts.experimental.useTsgo");
@@ -49,12 +27,41 @@ function detectVscodeSettings(settings: Record<string, unknown>): {
     );
   }
   return { detected: reasons.length > 0, reasons };
-}
+};
 
-export async function planVscodeActions(
+const detectVscodeContent = (
+  content: string
+): {
+  detected: boolean;
+  reasons: string[];
+} => {
+  try {
+    return detectVscodeSettings(parseJsonc<Record<string, unknown>>(content));
+  } catch {
+    return { detected: false, reasons: [] };
+  }
+};
+
+export const vscodeRecipe: Recipe = {
+  detect(ctx) {
+    try {
+      return detectVscodeContent(
+        readFileSync(
+          path.join(ctx.rootDir, ".vscode", "settings.json"),
+          "utf-8"
+        )
+      );
+    } catch {
+      return { detected: false, reasons: [] };
+    }
+  },
+  name: "vscode",
+};
+
+export const planVscodeActions = async (
   ctx: ProjectContext,
   mode: MigrationMode
-): Promise<MigrationAction[]> {
+): Promise<MigrationAction[]> => {
   if (!ctx.updateVscode) {
     return [];
   }
@@ -64,12 +71,12 @@ export async function planVscodeActions(
     return [];
   }
 
-  const description =
-    scan.hasUseTsgo && scan.hasNativePreviewTsdk
+  let description = "update typescript.tsdk";
+  if (scan.hasUseTsgo) {
+    description = scan.hasNativePreviewTsdk
       ? "remove js/ts.experimental.useTsgo and update typescript.tsdk"
-      : (scan.hasUseTsgo
-        ? "remove js/ts.experimental.useTsgo"
-        : "update typescript.tsdk");
+      : "remove js/ts.experimental.useTsgo";
+  }
 
   return [
     {
@@ -91,4 +98,4 @@ export async function planVscodeActions(
       type: "patchFile",
     },
   ];
-}
+};

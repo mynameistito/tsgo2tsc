@@ -16,7 +16,7 @@ export const runRollback = async (cwd: string): Promise<void> => {
   const snapshotName = path.basename(snapshotDir);
 
   log.success(
-    `Restored ${restored.length} file(s) from .tsgo2tsc/snapshots/${snapshotName}`
+    `Restored ${restored.length} file(s) from snapshot ${snapshotName}`
   );
   log.info("Run your package manager install again to refresh lockfiles.");
 };

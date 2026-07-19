@@ -1,4 +1,4 @@
-import { join } from "node:path";
+import path from "node:path";
 
 import type {
   MigrationMode,
@@ -14,13 +14,13 @@ import {
   tscCommand,
 } from "./package-manager.js";
 
-export async function runVerification(
+export const runVerification = async (
   cwd: string,
   pm: PackageManager,
   packages: WorkspacePackage[],
   mode: MigrationMode,
   options: { install: boolean; test: boolean }
-): Promise<{ commandsRun: string[]; results: VerificationResult[] }> {
+): Promise<{ commandsRun: string[]; results: VerificationResult[] }> => {
   const commandsRun: string[] = [];
   const results: VerificationResult[] = [];
 
@@ -68,9 +68,9 @@ export async function runVerification(
   const scripts = rootPkg?.scripts ?? {};
 
   if (!scripts.typecheck) {
-    const [cmd, args] = tscCommand(pm, ["--noEmit"]);
-    const noEmit = await runCommand(cmd, args, cwd);
-    const str = `${cmd} ${args.join(" ")}`;
+    const [noEmitCmd, noEmitArgs] = tscCommand(pm, ["--noEmit"]);
+    const noEmit = await runCommand(noEmitCmd, noEmitArgs, cwd);
+    const str = `${noEmitCmd} ${noEmitArgs.join(" ")}`;
     commandsRun.push(str);
     results.push({
       command: str,
@@ -79,23 +79,33 @@ export async function runVerification(
     });
   }
 
-  for (const pkg of packages) {
-    const packageCwd = pkg.dir === "." ? cwd : join(cwd, pkg.dir);
-    for (const scriptName of ["typecheck", "build", "lint", "test"] as const) {
-      if (!pkg.packageJson.scripts?.[scriptName]) {
-        continue;
-      }
-      const [cmd, args] = runScriptCommand(pm, scriptName);
-      const result = await runCommand(cmd, args, packageCwd);
-      const str = `${pkg.dir === "." ? "" : `${pkg.dir}: `}${cmd} ${args.join(" ")}`;
-      commandsRun.push(str);
-      results.push({
-        command: str,
-        output: result.output,
-        success: result.success,
-      });
+  const packageScripts = packages.flatMap((pkg) =>
+    (["typecheck", "build", "lint", "test"] as const)
+      .filter((scriptName) => pkg.packageJson.scripts?.[scriptName])
+      .map((scriptName) => ({ pkg, scriptName }))
+  );
+
+  const runNext = async (index: number): Promise<void> => {
+    const packageScript = packageScripts[index];
+    if (!packageScript) {
+      return;
     }
-  }
+
+    const { pkg, scriptName } = packageScript;
+    const packageCwd = pkg.dir === "." ? cwd : path.join(cwd, pkg.dir);
+    const [scriptCmd, scriptArgs] = runScriptCommand(pm, scriptName);
+    const result = await runCommand(scriptCmd, scriptArgs, packageCwd);
+    const str = `${pkg.dir === "." ? "" : `${pkg.dir}: `}${scriptCmd} ${scriptArgs.join(" ")}`;
+    commandsRun.push(str);
+    results.push({
+      command: str,
+      output: result.output,
+      success: result.success,
+    });
+
+    await runNext(index + 1);
+  };
+  await runNext(0);
 
   return { commandsRun, results };
-}
+};

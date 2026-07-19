@@ -9,7 +9,6 @@ import {
 } from "../scanners/configs.js";
 import { scanPackageJson } from "../scanners/package-json.js";
 import { scanSourceImports } from "../scanners/source-imports.js";
-import { sortedCopy } from "../utils/sort.js";
 import type {
   MigrationAction,
   MigrationMode,
@@ -18,10 +17,77 @@ import type {
   WorkspacePackage,
 } from "../types.js";
 import { relativePath } from "../utils/fs.js";
+import { sortedCopy } from "../utils/sort.js";
 
-export async function createMigrationPlan(
+const resolveMode = (
+  ctx: ProjectContext,
+  needsCompat: boolean
+): MigrationMode => {
+  if (needsCompat) {
+    return ctx.nightly ? "compat-nightly" : "compat-stable";
+  }
+  return ctx.nightly ? "nightly" : "stable";
+};
+
+const resolveOverallMode = (
+  modes: Map<string, MigrationMode>
+): MigrationMode => {
+  const values = [...modes.values()];
+  if (values.some((m) => m.startsWith("compat"))) {
+    return values.includes("compat-nightly")
+      ? "compat-nightly"
+      : "compat-stable";
+  }
+  return values.includes("nightly") ? "nightly" : "stable";
+};
+
+const findOwningPackage = (
+  packages: WorkspacePackage[],
+  relPath: string
+): string | null => {
+  const sorted = sortedCopy(
+    packages,
+    (left, right) => right.dir.length - left.dir.length
+  );
+
+  for (const pkg of sorted) {
+    if (pkg.dir === ".") {
+      const owned = !packages.some(
+        (other) => other.dir !== "." && relPath.startsWith(`${other.dir}/`)
+      );
+      if (owned) {
+        return ".";
+      }
+      continue;
+    }
+    if (relPath === pkg.dir || relPath.startsWith(`${pkg.dir}/`)) {
+      return pkg.dir;
+    }
+  }
+
+  return ".";
+};
+
+const resolvePackageModes = (
+  ctx: ProjectContext,
+  packageCompat: Map<string, boolean>
+): Map<string, MigrationMode> => {
+  const packageModes = new Map<string, MigrationMode>();
+  for (const pkg of ctx.packages) {
+    let pkgNeedsCompat = packageCompat.get(pkg.dir) ?? false;
+    if (ctx.compat === "force") {
+      pkgNeedsCompat = true;
+    } else if (ctx.compat === "off") {
+      pkgNeedsCompat = false;
+    }
+    packageModes.set(pkg.dir, resolveMode(ctx, pkgNeedsCompat));
+  }
+  return packageModes;
+};
+
+export const createMigrationPlan = async (
   ctx: ProjectContext
-): Promise<MigrationPlan> {
+): Promise<MigrationPlan> => {
   const reasons: string[] = [];
   const detectedTools: string[] = [];
   const warnings: MigrationAction[] = [];
@@ -79,16 +145,7 @@ export async function createMigrationPlan(
     });
   }
 
-  const packageModes = new Map<string, MigrationMode>();
-  for (const pkg of ctx.packages) {
-    const pkgNeedsCompat =
-      ctx.compat === "force"
-        ? true
-        : (ctx.compat === "off"
-          ? false
-          : (packageCompat.get(pkg.dir) ?? false));
-    packageModes.set(pkg.dir, resolveMode(ctx, pkgNeedsCompat));
-  }
+  const packageModes = resolvePackageModes(ctx, packageCompat);
 
   const mode = resolveOverallMode(packageModes);
 
@@ -115,55 +172,11 @@ export async function createMigrationPlan(
     reasons: [...new Set(reasons)],
     warnings,
   };
-}
+};
 
-function resolveMode(ctx: ProjectContext, needsCompat: boolean): MigrationMode {
-  if (needsCompat) {
-    return ctx.nightly ? "compat-nightly" : "compat-stable";
-  }
-  return ctx.nightly ? "nightly" : "stable";
-}
-
-function resolveOverallMode(modes: Map<string, MigrationMode>): MigrationMode {
-  const values = [...modes.values()];
-  if (values.some((m) => m.startsWith("compat"))) {
-    return values.includes("compat-nightly")
-      ? "compat-nightly"
-      : "compat-stable";
-  }
-  return values.includes("nightly") ? "nightly" : "stable";
-}
-
-function findOwningPackage(
-  packages: WorkspacePackage[],
-  relPath: string
-): string | null {
-  const sorted = sortedCopy(
-    packages,
-    (left, right) => right.dir.length - left.dir.length
-  );
-
-  for (const pkg of sorted) {
-    if (pkg.dir === ".") {
-      const owned = !packages.some(
-        (other) => other.dir !== "." && relPath.startsWith(`${other.dir}/`)
-      );
-      if (owned) {
-        return ".";
-      }
-      continue;
-    }
-    if (relPath === pkg.dir || relPath.startsWith(`${pkg.dir}/`)) {
-      return pkg.dir;
-    }
-  }
-
-  return ".";
-}
-
-export function groupActionsByFile(
+export const groupActionsByFile = (
   actions: MigrationAction[]
-): Map<string, MigrationAction[]> {
+): Map<string, MigrationAction[]> => {
   const map = new Map<string, MigrationAction[]>();
 
   for (const action of actions) {
@@ -176,11 +189,15 @@ export function groupActionsByFile(
         break;
       }
       case "patchFile": {
-        path = action.path;
+        const { path: patchPath } = action;
+        path = patchPath;
         break;
       }
       case "warn": {
         continue;
+      }
+      default: {
+        break;
       }
     }
     if (!path) {
@@ -192,4 +209,4 @@ export function groupActionsByFile(
   }
 
   return map;
-}
+};

@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { join } from "node:path";
+import path from "node:path";
 
 import fg from "fast-glob";
 import YAML from "yaml";
@@ -8,10 +8,43 @@ import type { PackageJson, WorkspacePackage } from "../types.js";
 import { readText } from "../utils/fs.js";
 import { sortedStrings } from "../utils/sort.js";
 
-export async function discoverWorkspaces(
+const readPnpmWorkspaces = async (filePath: string): Promise<string[]> => {
+  const content = await readText(filePath);
+  if (!content) {
+    return [];
+  }
+  try {
+    const doc = YAML.parse(content) as { packages?: string[] };
+    return doc.packages ?? [];
+  } catch {
+    return [];
+  }
+};
+
+const getWorkspacePatterns = (
+  rootDir: string,
+  rootPkg: PackageJson
+): Promise<string[]> | string[] => {
+  if (rootPkg.workspaces) {
+    if (Array.isArray(rootPkg.workspaces)) {
+      return rootPkg.workspaces;
+    }
+    if (
+      typeof rootPkg.workspaces === "object" &&
+      Array.isArray(rootPkg.workspaces.packages)
+    ) {
+      return rootPkg.workspaces.packages;
+    }
+  }
+
+  const pnpmWorkspace = path.join(rootDir, "pnpm-workspace.yaml");
+  return existsSync(pnpmWorkspace) ? readPnpmWorkspaces(pnpmWorkspace) : [];
+};
+
+export const discoverWorkspaces = async (
   rootDir: string
-): Promise<WorkspacePackage[]> {
-  const rootPkgPath = join(rootDir, "package.json");
+): Promise<WorkspacePackage[]> => {
+  const rootPkgPath = path.join(rootDir, "package.json");
   const rootContent = await readText(rootPkgPath);
   if (!rootContent) {
     return [];
@@ -35,87 +68,50 @@ export async function discoverWorkspaces(
     });
     for (const match of matches) {
       const normalized = match.replaceAll("\\", "/");
-      if (existsSync(join(rootDir, normalized, "package.json"))) {
+      if (existsSync(path.join(rootDir, normalized, "package.json"))) {
         dirs.add(normalized);
       }
     }
   }
 
-  const packages: WorkspacePackage[] = [];
+  const packages = await Promise.all(
+    sortedStrings([...dirs]).map(async (dir) => {
+      const packageJsonPath =
+        dir === "." ? rootPkgPath : path.join(rootDir, dir, "package.json");
+      const content = await readText(packageJsonPath);
+      if (!content) {
+        return null;
+      }
 
-  for (const dir of sortedStrings([...dirs])) {
-    const packageJsonPath =
-      dir === "." ? rootPkgPath : join(rootDir, dir, "package.json");
-    const content = await readText(packageJsonPath);
-    if (!content) {
-      continue;
-    }
+      try {
+        return {
+          dir: dir === "." ? "." : dir.replaceAll("\\", "/"),
+          packageJson: JSON.parse(content) as PackageJson,
+          packageJsonPath,
+        };
+      } catch {
+        // skip invalid package.json and continue scanning
+        return null;
+      }
+    })
+  );
 
-    try {
-      packages.push({
-        dir: dir === "." ? "." : dir.replaceAll("\\", "/"),
-        packageJson: JSON.parse(content) as PackageJson,
-        packageJsonPath,
-      });
-    } catch {
-      // skip invalid package.json and continue scanning
-    }
-  }
+  return packages.filter((pkg): pkg is WorkspacePackage => pkg !== null);
+};
 
-  return packages;
-}
+export const getAllDependencies = (
+  pkg: PackageJson
+): Record<string, string> => ({
+  ...pkg.dependencies,
+  ...pkg.devDependencies,
+  ...pkg.peerDependencies,
+  ...pkg.optionalDependencies,
+});
 
-async function getWorkspacePatterns(
-  rootDir: string,
-  rootPkg: PackageJson
-): Promise<string[]> {
-  if (rootPkg.workspaces) {
-    if (Array.isArray(rootPkg.workspaces)) {
-      return rootPkg.workspaces;
-    }
-    if (
-      typeof rootPkg.workspaces === "object" &&
-      Array.isArray(rootPkg.workspaces.packages)
-    ) {
-      return rootPkg.workspaces.packages;
-    }
-  }
+export const hasDependency = (pkg: PackageJson, name: string): boolean =>
+  name in getAllDependencies(pkg);
 
-  const pnpmWorkspace = join(rootDir, "pnpm-workspace.yaml");
-  if (existsSync(pnpmWorkspace)) {
-    return readPnpmWorkspaces(pnpmWorkspace);
-  }
-
-  return [];
-}
-
-async function readPnpmWorkspaces(path: string): Promise<string[]> {
-  const content = await readText(path);
-  if (!content) {
-    return [];
-  }
-  try {
-    const doc = YAML.parse(content) as { packages?: string[] };
-    return doc.packages ?? [];
-  } catch {
-    return [];
-  }
-}
-
-export function getAllDependencies(pkg: PackageJson): Record<string, string> {
-  return {
-    ...pkg.dependencies,
-    ...pkg.devDependencies,
-    ...pkg.peerDependencies,
-    ...pkg.optionalDependencies,
-  };
-}
-
-export function hasDependency(pkg: PackageJson, name: string): boolean {
-  return name in getAllDependencies(pkg);
-}
-
-export function findDependencySection(
+export const findDependencySection = (
   pkg: PackageJson,
   name: string
 ):
@@ -123,7 +119,7 @@ export function findDependencySection(
   | "devDependencies"
   | "peerDependencies"
   | "optionalDependencies"
-  | null {
+  | null => {
   if (pkg.dependencies && name in pkg.dependencies) {
     return "dependencies";
   }
@@ -137,4 +133,4 @@ export function findDependencySection(
     return "optionalDependencies";
   }
   return null;
-}
+};

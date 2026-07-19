@@ -6,9 +6,105 @@ import {
 import type { MigrationAction, PackageJson } from "../types.js";
 import { readText, writeText } from "../utils/fs.js";
 
-export async function applyActions(
+const applyPackageJsonAction = (
+  pkg: PackageJson,
+  action: MigrationAction
+): void => {
+  switch (action.type) {
+    case "removeDependency": {
+      removeDependency(pkg, action.section, action.name);
+      break;
+    }
+    case "addDependency": {
+      addDependency(pkg, action.section, action.name, action.version);
+      break;
+    }
+    case "replaceScriptToken": {
+      if (pkg.scripts?.[action.scriptName] === action.from) {
+        pkg.scripts[action.scriptName] = action.to;
+      }
+      break;
+    }
+    default: {
+      break;
+    }
+  }
+};
+
+const applyPackageJsonActions = async (
+  entries: [string, MigrationAction[]][],
+  filesChanged: Set<string>
+): Promise<void> => {
+  const applyNext = async (index: number): Promise<void> => {
+    const entry = entries[index];
+    if (!entry) {
+      return;
+    }
+
+    const [path, actions] = entry;
+    const content = await readText(path);
+    if (content) {
+      const patched = patchPackageJsonContent(content, (pkg) => {
+        for (const action of actions) {
+          applyPackageJsonAction(pkg, action);
+        }
+      });
+
+      if (patched !== content) {
+        await writeText(path, patched);
+        filesChanged.add(path);
+      }
+    }
+
+    await applyNext(index + 1);
+  };
+
+  await applyNext(0);
+};
+
+const applyFilePatches = async (
+  entries: [string, MigrationAction[]][],
+  filesChanged: Set<string>,
+  failures: Error[]
+): Promise<void> => {
+  const applyNext = async (index: number): Promise<void> => {
+    const entry = entries[index];
+    if (!entry) {
+      return;
+    }
+
+    const [path, actions] = entry;
+    const content = await readText(path);
+    if (content) {
+      let patched = content;
+      for (const action of actions) {
+        if (action.type === "patchFile") {
+          try {
+            patched = action.apply(patched);
+          } catch (error) {
+            failures.push(
+              error instanceof Error
+                ? error
+                : new Error(`Failed to patch ${path}: ${String(error)}`)
+            );
+          }
+        }
+      }
+      if (patched !== content) {
+        await writeText(path, patched);
+        filesChanged.add(path);
+      }
+    }
+
+    await applyNext(index + 1);
+  };
+
+  await applyNext(0);
+};
+
+export const applyActions = async (
   actions: MigrationAction[]
-): Promise<string[]> {
+): Promise<string[]> => {
   const filesChanged = new Set<string>();
   const byPackageJson = new Map<string, MigrationAction[]>();
   const filePatches = new Map<string, MigrationAction[]>();
@@ -34,48 +130,8 @@ export async function applyActions(
     }
   }
 
-  for (const [path, pkgActions] of byPackageJson) {
-    const content = await readText(path);
-    if (!content) {
-      continue;
-    }
-
-    const patched = patchPackageJsonContent(content, (pkg) => {
-      for (const action of pkgActions) {
-        applyPackageJsonAction(pkg, action);
-      }
-    });
-
-    if (patched !== content) {
-      await writeText(path, patched);
-      filesChanged.add(path);
-    }
-  }
-
-  for (const [path, actions] of filePatches) {
-    const content = await readText(path);
-    if (!content) {
-      continue;
-    }
-    let patched = content;
-    for (const action of actions) {
-      if (action.type === "patchFile") {
-        try {
-          patched = action.apply(patched);
-        } catch (error) {
-          failures.push(
-            error instanceof Error
-              ? error
-              : new Error(`Failed to patch ${path}: ${String(error)}`)
-          );
-        }
-      }
-    }
-    if (patched !== content) {
-      await writeText(path, patched);
-      filesChanged.add(path);
-    }
-  }
+  await applyPackageJsonActions([...byPackageJson], filesChanged);
+  await applyFilePatches([...filePatches], filesChanged, failures);
 
   if (failures.length === 1) {
     throw failures[0];
@@ -88,26 +144,4 @@ export async function applyActions(
   }
 
   return [...filesChanged];
-}
-
-function applyPackageJsonAction(
-  pkg: PackageJson,
-  action: MigrationAction
-): void {
-  switch (action.type) {
-    case "removeDependency": {
-      removeDependency(pkg, action.section, action.name);
-      break;
-    }
-    case "addDependency": {
-      addDependency(pkg, action.section, action.name, action.version);
-      break;
-    }
-    case "replaceScriptToken": {
-      if (pkg.scripts?.[action.scriptName] === action.from) {
-        pkg.scripts[action.scriptName] = action.to;
-      }
-      break;
-    }
-  }
-}
+};

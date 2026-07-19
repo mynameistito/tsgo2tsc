@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { cp, mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { homedir, tmpdir } from "node:os";
+import path from "node:path";
 
 import { applyActions } from "../src/core/apply.js";
 import { buildProjectContext } from "../src/core/context.js";
@@ -16,6 +16,7 @@ import { createMigrationPlan } from "../src/core/planner.js";
 import {
   collectFilesToBackup,
   createSnapshot,
+  getBackupRoot,
   rollbackFromSnapshot,
   serializeActions,
 } from "../src/core/snapshot.js";
@@ -25,54 +26,52 @@ import { planGithubActions } from "../src/recipes/github-actions.js";
 import type { MigrateOptions } from "../src/types.js";
 import { resolveTargetDir } from "../src/utils/path.js";
 
-const FIXTURES_DIR = join(import.meta.dir, "fixtures");
+const { join } = path;
+const FIXTURES_DIR = path.join(import.meta.dir, "fixtures");
 
-async function copyFixture(name: string): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), `tsgo2tsc-${name}-`));
-  await cp(join(FIXTURES_DIR, name, "input"), dir, { recursive: true });
+const copyFixture = async (name: string): Promise<string> => {
+  const dir = await mkdtemp(path.join(tmpdir(), `tsgo2tsc-${name}-`));
+  await cp(path.join(FIXTURES_DIR, name, "input"), dir, { recursive: true });
   return dir;
-}
+};
 
-function baseOptions(
+const baseOptions = (
   cwd: string,
   overrides: Partial<MigrateOptions> = {}
-): MigrateOptions {
-  return {
-    compat: "auto",
-    cwd,
-    dryRun: false,
-    fixTsconfig: false,
-    install: false,
-    nightly: false,
-    pm: "auto",
-    stable: false,
-    test: false,
-    updateCi: false,
-    updateDocs: false,
-    updateVscode: false,
-    write: true,
-    yes: true,
-    ...overrides,
-  };
-}
+): MigrateOptions => ({
+  compat: "auto",
+  cwd,
+  dryRun: false,
+  fixTsconfig: false,
+  install: false,
+  nightly: false,
+  pm: "auto",
+  stable: false,
+  test: false,
+  updateCi: false,
+  updateDocs: false,
+  updateVscode: false,
+  write: true,
+  yes: true,
+  ...overrides,
+});
 
-async function migrateFixture(
+const migrateFixture = async (
   name: string,
   overrides: Partial<MigrateOptions> = {}
 ): Promise<{
   cwd: string;
   plan: Awaited<ReturnType<typeof createMigrationPlan>>;
-}> {
+}> => {
   const cwd = await copyFixture(name);
   const ctx = await buildProjectContext(baseOptions(cwd, overrides));
   const plan = await createMigrationPlan(ctx);
   await applyActions(plan.actions);
   return { cwd, plan };
-}
+};
 
-async function readJson(path: string): Promise<unknown> {
-  return JSON.parse(await readFile(path, "utf-8"));
-}
+const readJson = async (filePath: string): Promise<unknown> =>
+  JSON.parse(await readFile(filePath, "utf-8"));
 
 describe("line numbers", () => {
   const pkg = `{
@@ -145,7 +144,9 @@ describe("resolveTargetDir", () => {
   });
 
   test("throws when package.json is missing", () => {
-    expect(() => resolveTargetDir("tests/fixtures")).toThrow(/No package.json/);
+    expect(() => resolveTargetDir("tests/fixtures")).toThrow(
+      /No package.json/u
+    );
   });
 });
 
@@ -185,7 +186,7 @@ describe("addTscFlags", () => {
 
 describe("parseJsonc", () => {
   test("throws on malformed JSONC", () => {
-    expect(() => parseJsonc("{")).toThrow(/Invalid JSONC/);
+    expect(() => parseJsonc("{")).toThrow(/Invalid JSONC/u);
   });
 });
 
@@ -297,6 +298,30 @@ describe("package manager detection", () => {
   });
 });
 
+describe("rollback state", () => {
+  test.skipIf(process.platform === "darwin")(
+    "ignores empty and relative configured state directories",
+    () => {
+      const variable =
+        process.platform === "win32" ? "LOCALAPPDATA" : "XDG_STATE_HOME";
+      const previous = process.env[variable];
+
+      try {
+        process.env[variable] = "relative-state";
+        expect(getBackupRoot(".")).toStartWith(homedir());
+
+        process.env[variable] = "";
+        expect(getBackupRoot(".")).toStartWith(homedir());
+      } finally {
+        if (previous === undefined) {
+          Reflect.deleteProperty(process.env, variable);
+        } else {
+          process.env[variable] = previous;
+        }
+      }
+    }
+  );
+});
 describe("migration fixtures", () => {
   test("simple-native-preview removes native-preview and adds stable typescript", async () => {
     const { cwd } = await migrateFixture("simple-native-preview");
@@ -431,15 +456,21 @@ describe("migration fixtures", () => {
     expect(plan.packageModes.get("packages/core")).toBe("stable");
     expect(plan.packageModes.get("packages/cli")).toBe("compat-stable");
 
-    for (const rel of [
+    const files = [
       "package.json",
       "packages/core/package.json",
       "packages/cli/package.json",
-    ]) {
-      const actual = await readJson(join(cwd, rel));
-      const expected = await readJson(
-        join(FIXTURES_DIR, "monorepo-bun", "expected", rel)
-      );
+    ];
+    const actualFiles = await Promise.all(
+      files.map((rel) => readJson(join(cwd, rel)))
+    );
+    const expectedFiles = await Promise.all(
+      files.map((rel) =>
+        readJson(join(FIXTURES_DIR, "monorepo-bun", "expected", rel))
+      )
+    );
+    for (const [index, actual] of actualFiles.entries()) {
+      const expected = expectedFiles[index];
       expect(actual).toEqual(expected);
     }
   });
@@ -465,7 +496,7 @@ describe("migration fixtures", () => {
     expect(after).toBe(before);
   });
 
-  test("rollback restores snapshot", async () => {
+  test("rollback restores a snapshot stored outside the project", async () => {
     const cwd = await copyFixture("simple-native-preview");
     const before = await readFile(join(cwd, "package.json"), "utf-8");
     const ctx = await buildProjectContext(baseOptions(cwd));
@@ -485,11 +516,13 @@ describe("migration fixtures", () => {
     const changed = await readFile(join(cwd, "package.json"), "utf-8");
     expect(changed).not.toBe(before);
 
+    const backupRoot = getBackupRoot(cwd);
+    expect(backupRoot).not.toStartWith(cwd);
+
     const snapshotDir = join(
-      cwd,
-      ".tsgo2tsc",
+      backupRoot,
       "snapshots",
-      await readFile(join(cwd, ".tsgo2tsc", "latest.json"), "utf-8").then(
+      await readFile(join(backupRoot, "latest.json"), "utf-8").then(
         (c) => JSON.parse(c).snapshot
       )
     );

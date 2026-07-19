@@ -1,4 +1,5 @@
 import fg from "fast-glob";
+
 import { sortedStrings } from "./sort.js";
 
 const DEFAULT_IGNORE = [
