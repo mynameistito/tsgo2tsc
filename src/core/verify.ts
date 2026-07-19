@@ -79,24 +79,33 @@ export const runVerification = async (
     });
   }
 
-  await Promise.all(
-    packages.flatMap((pkg) => {
-      const packageCwd = pkg.dir === "." ? cwd : path.join(cwd, pkg.dir);
-      return (["typecheck", "build", "lint", "test"] as const)
-        .filter((scriptName) => pkg.packageJson.scripts?.[scriptName])
-        .map(async (scriptName) => {
-          const [scriptCmd, scriptArgs] = runScriptCommand(pm, scriptName);
-          const result = await runCommand(scriptCmd, scriptArgs, packageCwd);
-          const str = `${pkg.dir === "." ? "" : `${pkg.dir}: `}${scriptCmd} ${scriptArgs.join(" ")}`;
-          commandsRun.push(str);
-          results.push({
-            command: str,
-            output: result.output,
-            success: result.success,
-          });
-        });
-    })
+  const packageScripts = packages.flatMap((pkg) =>
+    (["typecheck", "build", "lint", "test"] as const)
+      .filter((scriptName) => pkg.packageJson.scripts?.[scriptName])
+      .map((scriptName) => ({ pkg, scriptName }))
   );
+
+  const runNext = async (index: number): Promise<void> => {
+    const packageScript = packageScripts[index];
+    if (!packageScript) {
+      return;
+    }
+
+    const { pkg, scriptName } = packageScript;
+    const packageCwd = pkg.dir === "." ? cwd : path.join(cwd, pkg.dir);
+    const [scriptCmd, scriptArgs] = runScriptCommand(pm, scriptName);
+    const result = await runCommand(scriptCmd, scriptArgs, packageCwd);
+    const str = `${pkg.dir === "." ? "" : `${pkg.dir}: `}${scriptCmd} ${scriptArgs.join(" ")}`;
+    commandsRun.push(str);
+    results.push({
+      command: str,
+      output: result.output,
+      success: result.success,
+    });
+
+    await runNext(index + 1);
+  };
+  await runNext(0);
 
   return { commandsRun, results };
 };

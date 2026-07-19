@@ -179,14 +179,17 @@ export const printDryRunOutput = async (
   const warnings = actions.filter((a) => a.type === "warn");
   const fileContents = new Map<string, string>();
 
-  const contents = await Promise.all(
-    [...grouped.keys()].map(
-      async (file) => [file, (await readText(file)) ?? ""] as const
-    )
-  );
-  for (const [file, content] of contents) {
-    fileContents.set(file, content);
-  }
+  const files = [...grouped.keys()];
+  const readNext = async (index: number): Promise<void> => {
+    const file = files[index];
+    if (!file) {
+      return;
+    }
+
+    fileContents.set(file, (await readText(file)) ?? "");
+    await readNext(index + 1);
+  };
+  await readNext(0);
 
   console.log(pc.bold("tsgo2tsc"));
   console.log();

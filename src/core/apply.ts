@@ -35,27 +35,31 @@ const applyPackageJsonActions = async (
   entries: [string, MigrationAction[]][],
   filesChanged: Set<string>
 ): Promise<void> => {
-  const [entry, ...remaining] = entries;
-  if (!entry) {
-    return;
-  }
-
-  const [path, actions] = entry;
-  const content = await readText(path);
-  if (content) {
-    const patched = patchPackageJsonContent(content, (pkg) => {
-      for (const action of actions) {
-        applyPackageJsonAction(pkg, action);
-      }
-    });
-
-    if (patched !== content) {
-      await writeText(path, patched);
-      filesChanged.add(path);
+  const applyNext = async (index: number): Promise<void> => {
+    const entry = entries[index];
+    if (!entry) {
+      return;
     }
-  }
 
-  await applyPackageJsonActions(remaining, filesChanged);
+    const [path, actions] = entry;
+    const content = await readText(path);
+    if (content) {
+      const patched = patchPackageJsonContent(content, (pkg) => {
+        for (const action of actions) {
+          applyPackageJsonAction(pkg, action);
+        }
+      });
+
+      if (patched !== content) {
+        await writeText(path, patched);
+        filesChanged.add(path);
+      }
+    }
+
+    await applyNext(index + 1);
+  };
+
+  await applyNext(0);
 };
 
 const applyFilePatches = async (
@@ -63,35 +67,39 @@ const applyFilePatches = async (
   filesChanged: Set<string>,
   failures: Error[]
 ): Promise<void> => {
-  const [entry, ...remaining] = entries;
-  if (!entry) {
-    return;
-  }
+  const applyNext = async (index: number): Promise<void> => {
+    const entry = entries[index];
+    if (!entry) {
+      return;
+    }
 
-  const [path, actions] = entry;
-  const content = await readText(path);
-  if (content) {
-    let patched = content;
-    for (const action of actions) {
-      if (action.type === "patchFile") {
-        try {
-          patched = action.apply(patched);
-        } catch (error) {
-          failures.push(
-            error instanceof Error
-              ? error
-              : new Error(`Failed to patch ${path}: ${String(error)}`)
-          );
+    const [path, actions] = entry;
+    const content = await readText(path);
+    if (content) {
+      let patched = content;
+      for (const action of actions) {
+        if (action.type === "patchFile") {
+          try {
+            patched = action.apply(patched);
+          } catch (error) {
+            failures.push(
+              error instanceof Error
+                ? error
+                : new Error(`Failed to patch ${path}: ${String(error)}`)
+            );
+          }
         }
       }
+      if (patched !== content) {
+        await writeText(path, patched);
+        filesChanged.add(path);
+      }
     }
-    if (patched !== content) {
-      await writeText(path, patched);
-      filesChanged.add(path);
-    }
-  }
 
-  await applyFilePatches(remaining, filesChanged, failures);
+    await applyNext(index + 1);
+  };
+
+  await applyNext(0);
 };
 
 export const applyActions = async (
